@@ -124,9 +124,6 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-[#0b1c30] font-display">{services.length}</span>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-              +2 este mes
-            </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Disponibles en catálogo público</p>
         </div>
@@ -163,7 +160,9 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#0b1c30] font-display">18</span>
+            <span className="text-3xl font-extrabold text-[#0b1c30] font-display">
+              {slots.filter((s) => !s.isBooked).length}
+            </span>
             <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
               Cupos libres
             </span>
@@ -182,9 +181,8 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#0b1c30] font-display">24</span>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-              92% asistencia
+            <span className="text-3xl font-extrabold text-[#0b1c30] font-display">
+              {confirmedBookings.length}
             </span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Con recordatorios automatizados</p>
