@@ -308,16 +308,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegister })
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
-
-            <div className="mt-5 p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-left">
-              <p className="text-[11px] font-semibold text-blue-900 flex items-center gap-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                Integración con backend
-              </p>
-              <p className="text-[11px] text-blue-700/80 mt-0.5">
-                Las credenciales se validan directamente contra el backend y el rol viene del servidor.
-              </p>
-            </div>
           </div>
         </div>
       </main>
