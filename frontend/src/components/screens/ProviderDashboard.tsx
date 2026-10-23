@@ -61,11 +61,6 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
       ? pendingBookings
       : confirmedBookings;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText('https://agendapro.app/lauramorales-studio');
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
 
   return (
     <div className="space-y-6">
@@ -409,47 +404,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
             </button>
           </div>
 
-          {/* Card 2: Tu Enlace Público de Reserva (Image 4 & 10) */}
-          <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/50 rounded-2xl border border-blue-200/80 p-5 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">
-              <Share2 className="w-4 h-4 text-blue-600" />
-              <span>Tu Enlace Público de Reserva</span>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed mb-3">
-              Comparte este enlace con tus clientes en WhatsApp o redes sociales para que reserven
-              directamente según tus cupos libres:
-            </p>
 
-            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-blue-200 shadow-2xs">
-              <span className="text-xs font-semibold text-slate-700 truncate pl-1 select-all">
-                agendapro.app/lauramorales-studio
-              </span>
-              <button
-                onClick={handleCopyLink}
-                className="shrink-0 px-2.5 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
-              >
-                {copiedLink ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedLink ? '¡Copiado!' : 'Copiar'}</span>
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between pt-1">
-              <button
-                onClick={onOpenShareModal}
-                className="text-xs font-bold text-blue-700 hover:underline flex items-center gap-1"
-              >
-                <span>Ver código QR y WhatsApp</span>
-              </button>
-
-              <button
-                onClick={() => onNavigate('client-explore')}
-                className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs"
-              >
-                <ExternalLink className="w-3 h-3" />
-                <span>Vista del cliente</span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
