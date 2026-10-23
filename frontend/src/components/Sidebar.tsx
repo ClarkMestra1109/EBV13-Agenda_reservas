@@ -26,6 +26,8 @@ interface SidebarProps {
   onLogout: () => void;
   pendingBookingsCount: number;
   activeClientBookingsCount: number;
+  servicesCount: number;
+  availableSlotsCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,6 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   onSwitchRole,
   onLogout,
+  servicesCount,
+  availableSlotsCount,
   pendingBookingsCount,
   activeClientBookingsCount,
 }) => {
@@ -102,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                   currentView === 'provider-services' ? 'bg-blue-800 text-blue-100' : 'bg-slate-100 text-slate-500'
                 }`}>
-                  6
+                  {servicesCount}
                 </span>
               </button>
 
@@ -122,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                   currentView === 'provider-availability' ? 'bg-blue-800 text-blue-100' : 'bg-emerald-100 text-emerald-700'
                 }`}>
-                  18 libres
+                  {availableSlotsCount} libres
                 </span>
               </button>
 
