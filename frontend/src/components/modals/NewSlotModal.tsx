@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AvailabilitySlot, ServiceItem } from '../../types';
 import { X, Clock, Plus } from 'lucide-react';
 
@@ -20,6 +20,11 @@ export const NewSlotModal: React.FC<NewSlotModalProps> = ({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [capacity, setCapacity] = useState('1');
+    useEffect(() => {
+    if (services.length > 0 && !services.some((s) => s.id === serviceId)) {
+      setServiceId(services[0].id);
+    }
+  }, [services, serviceId]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
