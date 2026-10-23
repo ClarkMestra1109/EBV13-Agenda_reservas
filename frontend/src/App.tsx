@@ -494,6 +494,7 @@ export function App() {
   );
 
   const pendingBookingsCount = bookings.filter((b) => b.status === 'pending').length;
+  const availableSlotsCount = slots.filter((s) => !s.isBooked).length;
   const activeClientBookingsCount = bookings.filter(
     (b) => b.status === 'confirmed' || b.status === 'pending'
   ).length;
@@ -525,6 +526,10 @@ export function App() {
             onLogout={handleLogout}
             pendingBookingsCount={pendingBookingsCount}
             activeClientBookingsCount={activeClientBookingsCount}
+            pendingBookingsCount={pendingBookingsCount}
+            activeClientBookingsCount={activeClientBookingsCount}
+            servicesCount={services.length}
+            availableSlotsCount={availableSlotsCount}
           />
 
           <div className="flex-1 flex flex-col min-w-0">
