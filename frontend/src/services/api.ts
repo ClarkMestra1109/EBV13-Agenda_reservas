@@ -162,6 +162,13 @@ export async function updateService(
   });
 }
 
+/** HU06 (Sprint 2): baja lógica de un servicio propio. */
+export async function deleteService(id: number) {
+  return request<void>(`/servicios/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function getAvailableSlots(serviceId: number) {
   return request<ApiSlot[]>(`/catalogo/servicios/${serviceId}/franjas`);
 }
