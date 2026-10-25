@@ -411,26 +411,16 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
 
           {/* Provider Bio Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
-            <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC01S9TmngYbMx1mcz1769UTr0MwfdANXcck-mr_a1Aky0nR-UOZpZIBD8QP316pQqWVSJVPCEKbsZIWVWBoqAl1IJOLpSB3shCG2Z9ta8dgVJbfTd5Vya-qoOl2Pc6CfyIpLI_CJSYdsXf8MAFzBtstqUjSZIR4bJXsscMm4YNhIMpiVnWTv3bDmrwkADMfgOwRYn1eCKQSHefjoxh0N0zD-IPnuE427de4wwSgFq9ePhQVf_Fu_Q5dQ"
-              alt="Laura Morales"
-              className="w-14 h-14 rounded-2xl object-cover border border-slate-200"
-            />
+            <div className="w-14 h-14 rounded-2xl bg-blue-700 text-white flex items-center justify-center text-lg font-extrabold shrink-0">
+              {service.providerStudio ? service.providerStudio.charAt(0).toUpperCase() : '?'}
+            </div>
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-slate-900 font-display">
-                  Laura Morales
-                </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
-                  Master Barber
+                  {service.providerStudio || 'Proveedor del servicio'}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Especialista en visagismo masculino y diseño de barbas en Bogotá Chicó Norte.
-              </p>
-              <p className="text-[11px] text-emerald-600 font-semibold">
-                ✓ Protocolos de higiene y esterilización de instrumental certificados.
-              </p>
+              <p className="text-xs text-slate-500">{service.description}</p>
             </div>
           </div>
         </div>

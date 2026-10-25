@@ -36,35 +36,16 @@ export const ClientReservations: React.FC<ClientReservationsProps> = ({
   );
   const cancelledBookings = bookings.filter((b) => b.status === 'cancelled');
 
-  const pastBookings = [
-    {
-      id: 'AP-8772',
-      service: 'Entrenamiento Personalizado Funcional',
-      provider: 'Coach Valentina',
-      date: '18 Octubre 2024',
-      price: '$35.000 COP',
-      status: 'Completada',
-      rating: '5★ Calificado',
-    },
-    {
-      id: 'AP-8740',
-      service: 'Mantenimiento Preventivo Portátil',
-      provider: 'Felipe Mendoza',
-      date: '12 Octubre 2024',
-      price: '$75.000 COP',
-      status: 'Completada',
-      rating: '5★ Calificado',
-    },
-    {
-      id: 'AP-8711',
-      service: 'Corte Clásico & Barba',
-      provider: 'Laura Morales Studio',
-      date: '28 Septiembre 2024',
-      price: '$25.000 COP',
-      status: 'Completada',
-      rating: '5★ Calificado',
-    },
-  ];
+  // El backend actual no marca reservas como "completadas" automáticamente
+  // (no hay ese estado en EstadoReserva), así que el historial refleja
+  // únicamente lo que realmente existe: ninguna reserva completada todavía.
+  const pastBookings: {
+    id: string;
+    service: string;
+    provider: string;
+    date: string;
+    price: string;
+  }[] = [];
 
   return (
     <div className="space-y-6">
@@ -265,43 +246,47 @@ export const ClientReservations: React.FC<ClientReservationsProps> = ({
       {/* Tab: History */}
       {activeTab === 'history' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/60">
-                <th className="py-3 px-4">Servicio & Proveedor</th>
-                <th className="py-3 px-4">Fecha</th>
-                <th className="py-3 px-4">Valor</th>
-                <th className="py-3 px-4">Estado</th>
-                <th className="py-3 px-4 text-right">Comprobante</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {pastBookings.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/60">
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{item.service}</div>
-                    <div className="text-[11px] text-slate-400">{item.provider}</div>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600">{item.date}</td>
-                  <td className="py-3.5 px-4 font-bold text-slate-800">{item.price}</td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                      ✓ {item.status}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      onClick={() => alert(`Descargando comprobante fiscal ${item.id}.pdf`)}
-                      className="text-xs font-bold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>PDF</span>
-                    </button>
-                  </td>
+          {pastBookings.length === 0 ? (
+            <div className="p-10 text-center space-y-2">
+              <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-700">Aún no tienes servicios completados</p>
+              <p className="text-xs text-slate-500">
+                Cuando una cita confirmada se cumpla, aparecerá aquí.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/60">
+                  <th className="py-3 px-4">Servicio & Proveedor</th>
+                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4">Valor</th>
+                  <th className="py-3 px-4 text-right">Comprobante</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {pastBookings.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/60">
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-slate-900">{item.service}</div>
+                      <div className="text-[11px] text-slate-400">{item.provider}</div>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600">{item.date}</td>
+                    <td className="py-3.5 px-4 font-bold text-slate-800">{item.price}</td>
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        onClick={() => alert(`Descargando comprobante fiscal ${item.id}.pdf`)}
+                        className="text-xs font-bold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>PDF</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
