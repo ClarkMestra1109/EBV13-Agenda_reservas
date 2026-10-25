@@ -3,6 +3,8 @@ package com.fabricaescuela.reservas.web;
 import com.fabricaescuela.reservas.dto.AuthResponse;
 import com.fabricaescuela.reservas.dto.LoginRequest;
 import com.fabricaescuela.reservas.dto.RegistroRequest;
+import com.fabricaescuela.reservas.dto.RestablecerContrasenaRequest;
+import com.fabricaescuela.reservas.dto.SolicitarRecuperacionRequest;
 import com.fabricaescuela.reservas.dto.UsuarioResponse;
 import com.fabricaescuela.reservas.service.AuthService;
 import jakarta.validation.Valid;
@@ -31,5 +33,19 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse iniciarSesion(@Valid @RequestBody LoginRequest req) {
         return auth.iniciarSesion(req);
+    }
+
+    /** HU04: solicita el envío del enlace de recuperación al correo registrado. */
+    @PostMapping("/recuperar")
+    public ResponseEntity<Void> solicitarRecuperacion(@Valid @RequestBody SolicitarRecuperacionRequest req) {
+        auth.solicitarRecuperacion(req.correo());
+        return ResponseEntity.ok().build();
+    }
+
+    /** HU04: usa el token recibido por correo para definir una nueva contraseña. */
+    @PostMapping("/restablecer")
+    public ResponseEntity<Void> restablecerContrasena(@Valid @RequestBody RestablecerContrasenaRequest req) {
+        auth.restablecerContrasena(req);
+        return ResponseEntity.ok().build();
     }
 }

@@ -1,5 +1,6 @@
 package com.fabricaescuela.reservas.web;
 
+import com.fabricaescuela.reservas.dto.FranjaRecurrenteRequest;
 import com.fabricaescuela.reservas.dto.FranjaRequest;
 import com.fabricaescuela.reservas.dto.FranjaResponse;
 import com.fabricaescuela.reservas.security.UsuarioAutenticado;
@@ -32,6 +33,15 @@ public class FranjaController {
                                                    @PathVariable Long servicioId,
                                                    @Valid @RequestBody FranjaRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(franjas.publicar(usuario.id(), servicioId, req));
+    }
+
+    /** HU12: publica varias franjas siguiendo un patrón semanal. */
+    @PostMapping("/api/servicios/{servicioId}/franjas/recurrentes")
+    public ResponseEntity<List<FranjaResponse>> publicarRecurrente(@AuthenticationPrincipal UsuarioAutenticado usuario,
+                                                                    @PathVariable Long servicioId,
+                                                                    @Valid @RequestBody FranjaRecurrenteRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(franjas.publicarRecurrente(usuario.id(), servicioId, req));
     }
 
     @GetMapping("/api/servicios/{servicioId}/franjas")

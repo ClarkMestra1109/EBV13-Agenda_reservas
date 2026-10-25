@@ -1,5 +1,6 @@
 package com.fabricaescuela.reservas.web;
 
+import com.fabricaescuela.reservas.dto.ReprogramarReservaRequest;
 import com.fabricaescuela.reservas.dto.ReservaRequest;
 import com.fabricaescuela.reservas.dto.ReservaResponse;
 import com.fabricaescuela.reservas.security.UsuarioAutenticado;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Reservas del cliente (HU14 y HU15). El acceso solo para CLIENTE se define en SecurityConfig. */
+/** Reservas del cliente (HU14, HU15 y HU16). El acceso solo para CLIENTE se define en SecurityConfig. */
 @RestController
 @RequestMapping("/api/reservas")
 public class ReservaController {
@@ -36,5 +37,13 @@ public class ReservaController {
     public ReservaResponse cancelar(@AuthenticationPrincipal UsuarioAutenticado usuario,
                                     @PathVariable Long id) {
         return reservas.cancelar(usuario.id(), id);
+    }
+
+    /** HU16: cambia la reserva a una nueva franja del mismo servicio. */
+    @PutMapping("/{id}/reprogramar")
+    public ReservaResponse reprogramar(@AuthenticationPrincipal UsuarioAutenticado usuario,
+                                       @PathVariable Long id,
+                                       @Valid @RequestBody ReprogramarReservaRequest req) {
+        return reservas.reprogramar(usuario.id(), id, req.nuevaFranjaId());
     }
 }

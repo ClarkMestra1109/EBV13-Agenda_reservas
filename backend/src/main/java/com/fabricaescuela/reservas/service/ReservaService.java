@@ -18,10 +18,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class ReservaService {
+
+    private static final ZoneId ZONA = ZoneId.of("America/Bogota");
 
     private final ReservaRepository reservas;
     private final FranjaRepository franjas;
@@ -105,5 +109,69 @@ public class ReservaService {
                 ? reservas.agendaDeCliente(usuario.id(), EstadoReserva.CONFIRMADA, ahora)
                 : reservas.agendaDeProveedor(usuario.id(), EstadoReserva.CONFIRMADA, ahora);
         return lista.stream().map(ReservaResponse::desde).toList();
+    }
+
+    /** HU18: misma agenda de HU17, pero permite filtrar por fecha exacta y/o por servicio. */
+    @Transactional(readOnly = true)
+    public List<ReservaResponse> agenda(UsuarioAutenticado usuario, LocalDate fecha, Long servicioId) {
+        Instant ahora = Instant.now();
+        Instant inicioDia = fecha == null ? null : fecha.atStartOfDay(ZONA).toInstant();
+        Instant finDia = fecha == null ? null : fecha.plusDays(1).atStartOfDay(ZONA).toInstant();
+        List<Reserva> lista = usuario.rol() == Rol.CLIENTE
+                ? reservas.agendaDeClienteFiltrada(usuario.id(), EstadoReserva.CONFIRMADA, ahora, servicioId, inicioDia, finDia)
+                : reservas.agendaDeProveedorFiltrada(usuario.id(), EstadoReserva.CONFIRMADA, ahora, servicioId, inicioDia, finDia);
+        return lista.stream().map(ReservaResponse::desde).toList();
+    }
+
+    /**
+     * HU16: el cliente cambia una reserva futura propia a una nueva franja con cupo, del mismo
+     * servicio. Se bloquean ambas franjas en orden ascendente de id para evitar interbloqueos
+     * entre dos reprogramaciones concurrentes que cruzan las mismas franjas. Si algo falla, no
+     * se modifica nada y la reserva original permanece intacta.
+     */
+    @Transactional
+    public ReservaResponse reprogramar(Long clienteId, Long reservaId, Long nuevaFranjaId) {
+        Reserva reserva = reservas.buscarParaActualizar(reservaId)
+                .orElseThrow(() -> ApiException.noEncontrado("La reserva no existe"));
+        if (!reserva.getCliente().getId().equals(clienteId)) {
+            throw ApiException.prohibido("No tiene permiso para reprogramar esta reserva");
+        }
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
+            throw ApiException.conflicto("Solo se pueden reprogramar reservas confirmadas");
+        }
+        Long franjaAnteriorId = reserva.getFranja().getId();
+        if (franjaAnteriorId.equals(nuevaFranjaId)) {
+            throw ApiException.invalido("Debe seleccionar una franja distinta a la actual");
+        }
+        if (!reserva.getFranja().getInicio().isAfter(Instant.now())) {
+            throw ApiException.conflicto("Solo se pueden reprogramar reservas futuras");
+        }
+
+        long primero = Math.min(franjaAnteriorId, nuevaFranjaId);
+        long segundo = Math.max(franjaAnteriorId, nuevaFranjaId);
+        Franja bloqueoA = franjas.buscarParaActualizar(primero)
+                .orElseThrow(() -> ApiException.noEncontrado("La franja no existe"));
+        Franja bloqueoB = franjas.buscarParaActualizar(segundo)
+                .orElseThrow(() -> ApiException.noEncontrado("La franja no existe"));
+        Franja franjaAnterior = franjaAnteriorId == primero ? bloqueoA : bloqueoB;
+        Franja franjaNueva = nuevaFranjaId == primero ? bloqueoA : bloqueoB;
+
+        if (!franjaNueva.getServicio().getId().equals(franjaAnterior.getServicio().getId())) {
+            throw ApiException.invalido("Solo puede reprogramar a una franja del mismo servicio");
+        }
+        if (franjaNueva.getEstado() != EstadoFranja.PUBLICADA || !franjaNueva.getInicio().isAfter(Instant.now())) {
+            throw ApiException.conflicto("La franja seleccionada ya no está disponible");
+        }
+        if (franjaNueva.getCuposOcupados() >= franjaNueva.getCupoTotal()) {
+            throw ApiException.conflicto("La franja seleccionada no tiene cupos disponibles");
+        }
+
+        franjaAnterior.setCuposOcupados(Math.max(0, franjaAnterior.getCuposOcupados() - 1));
+        franjaNueva.setCuposOcupados(franjaNueva.getCuposOcupados() + 1);
+        reserva.setFranja(franjaNueva);
+        reservas.saveAndFlush(reserva);
+        historial.save(new HistorialEstadoReserva(reserva, reserva.getCliente(),
+                EstadoReserva.CONFIRMADA.name(), "REPROGRAMADA"));
+        return ReservaResponse.desde(reserva);
     }
 }

@@ -99,4 +99,19 @@ abstract class PruebasBase {
                 .andReturn().getResponse().getContentAsString();
         return om.readTree(respuesta).get("id").asLong();
     }
+
+    /** Variante de {@link #registrarYLogin} que también devuelve el correo usado. */
+    protected record Sesion(String correo, String token) {
+    }
+
+    protected Sesion registrarYLoginSesion(String rol) throws Exception {
+        String correo = correoUnico();
+        enviar(post("/api/auth/register"),
+                mapa("nombre", "Usuario de prueba", "correo", correo, "contrasena", "Clave1234", "rol", rol), null)
+                .andExpect(status().isCreated());
+        String respuesta = enviar(post("/api/auth/login"), mapa("correo", correo, "contrasena", "Clave1234"), null)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return new Sesion(correo, om.readTree(respuesta).get("token").asText());
+    }
 }
