@@ -18,6 +18,7 @@ import {
   createRecurringSlots,
   createService,
   createSlot,
+  deleteService,
   deleteSlot,
   getProfile,
   rescheduleBooking,
@@ -48,7 +49,7 @@ import { ProfileScreen } from './components/screens/ProfileScreen';
 import { BookingConfirmationModal } from './components/modals/BookingConfirmationModal';
 import { CancelBookingModal } from './components/modals/CancelBookingModal';
 import { RescheduleBookingModal } from './components/modals/RescheduleBookingModal';
-import { NewServiceModal } from './components/modals/NewServiceModal';
+import { NewServiceModal, ServicioFormData } from './components/modals/NewServiceModal';
 import { NewSlotModal, NuevaFranjaRecurrentePayload } from './components/modals/NewSlotModal';
 import { SharePublicLinkModal } from './components/modals/SharePublicLinkModal';
 import { CheckCircle2 } from 'lucide-react';
@@ -282,6 +283,7 @@ export function App() {
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
   const [isNewServiceOpen, setIsNewServiceOpen] = useState(false);
+  const [serviceToEdit, setServiceToEdit] = useState<ServiceItem | null>(null);
   const [isNewSlotOpen, setIsNewSlotOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -300,12 +302,19 @@ export function App() {
 
       if (frontendRole === 'provider') {
         const providerServicesApi = await getMyServices();
-        const providerServices = providerServicesApi.map(mapProviderService);
+        // HU06: los servicios con baja lógica (ELIMINADO) no deben seguir apareciendo en
+        // "Mis Servicios" ni en la disponibilidad, aunque el backend todavía los devuelva
+        // (se conservan para no perder el historial de reservas pasadas).
+        const activeProviderServicesApi = providerServicesApi.filter(
+          (service) => service.estado !== 'ELIMINADO'
+        );
+        const providerServices = activeProviderServicesApi.map(mapProviderService);
+        const allProviderServices = providerServicesApi.map(mapProviderService);
         setServices(providerServices);
 
         const allSlots = (
           await Promise.all(
-            providerServicesApi.map((service) => getMyServiceSlots(service.id))
+            activeProviderServicesApi.map((service) => getMyServiceSlots(service.id))
           )
         )
           .flat()
@@ -319,7 +328,7 @@ export function App() {
         setSlots(allSlots);
 
         const agenda = await getAgenda();
-        setBookings(agenda.map((item) => mapBooking(item, providerServices, loggedUser)));
+        setBookings(agenda.map((item) => mapBooking(item, allProviderServices, loggedUser)));
       } else {
         const catalog = await getCatalogServices();
         const catalogServices = catalog.map(mapCatalogService);
@@ -497,22 +506,54 @@ export function App() {
     await loadData(user!);
   };
 
-  const handleAddService = async (newService: ServiceItem) => {
-    try {
-      const created = await createService({
-        nombre: newService.title,
-        descripcion: newService.description,
-        duracionMin: newService.durationMinutes,
-        precio: newService.price,
-      });
+  const handleAddService = async (data: ServicioFormData) => {
+    const created = await createService({
+      nombre: data.title,
+      descripcion: data.description,
+      duracionMin: data.durationMinutes,
+      precio: data.price,
+    });
 
-      const mapped = mapProviderService(created);
-      setServices((prev) => [mapped, ...prev]);
-      setIsNewServiceOpen(false);
-      showToast(`Servicio "${created.nombre}" publicado en tu catálogo.`);
+    const mapped = mapProviderService(created);
+    setServices((prev) => [mapped, ...prev]);
+    showToast(`Servicio "${created.nombre}" publicado en tu catálogo.`);
+  };
+
+  const handleUpdateServiceDetails = async (id: string, data: ServicioFormData) => {
+    const existing = services.find((s) => s.id === id);
+
+    const updated = await updateService(Number(id), {
+      nombre: data.title,
+      descripcion: data.description,
+      duracionMin: data.durationMinutes,
+      precio: data.price,
+      estado: existing?.isActive === false ? 'INACTIVO' : 'ACTIVO',
+    });
+
+    const mapped = mapProviderService(updated);
+    setServices((prev) => prev.map((s) => (s.id === id ? mapped : s)));
+    showToast(`Servicio "${updated.nombre}" actualizado.`);
+  };
+
+  const handleDeleteService = async (id: string) => {
+    try {
+      await deleteService(Number(id));
+      setServices((prev) => prev.filter((s) => s.id !== id));
+      setSlots((prev) => prev.filter((s) => s.serviceId !== id));
+      showToast('Servicio eliminado.');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible crear el servicio');
+      showToast(err instanceof Error ? err.message : 'No fue posible eliminar el servicio');
     }
+  };
+
+  const handleOpenCreateService = () => {
+    setServiceToEdit(null);
+    setIsNewServiceOpen(true);
+  };
+
+  const handleOpenEditService = (service: ServiceItem) => {
+    setServiceToEdit(service);
+    setIsNewServiceOpen(true);
   };
 
   const handleAddSlot = async (slot: AvailabilitySlot) => {
@@ -600,7 +641,7 @@ export function App() {
               currentView={currentView}
               onNavigate={setCurrentView}
               onSwitchRole={handleSwitchRole}
-              onOpenNewService={() => setIsNewServiceOpen(true)}
+              onOpenNewService={handleOpenCreateService}
               onOpenNewSlot={() => setIsNewSlotOpen(true)}
               onOpenShareModal={() => setIsShareModalOpen(true)}
             />
@@ -613,7 +654,7 @@ export function App() {
                   services={services}
                   slots={slots}
                   onNavigate={setCurrentView}
-                  onOpenNewService={() => setIsNewServiceOpen(true)}
+                  onOpenNewService={handleOpenCreateService}
                   onOpenNewSlot={() => setIsNewSlotOpen(true)}
                   onConfirmBooking={handleConfirmBooking}
                   onCancelBooking={handleCancelBooking}
@@ -646,8 +687,10 @@ export function App() {
               {currentView === 'provider-services' && (
                 <ProviderServices
                   services={services}
-                  onOpenNewService={() => setIsNewServiceOpen(true)}
+                  onOpenNewService={handleOpenCreateService}
+                  onEditService={handleOpenEditService}
                   onNavigate={setCurrentView}
+                  onDeleteService={handleDeleteService}
                   onToggleActive={async (id) => {
                     const servicio = services.find((s) => s.id === id);
                     if (!servicio) return;
@@ -746,8 +789,13 @@ export function App() {
 
       <NewServiceModal
         isOpen={isNewServiceOpen}
-        onClose={() => setIsNewServiceOpen(false)}
+        onClose={() => {
+          setIsNewServiceOpen(false);
+          setServiceToEdit(null);
+        }}
         onAddService={handleAddService}
+        onUpdateService={handleUpdateServiceDetails}
+        serviceToEdit={serviceToEdit}
       />
 
       <NewSlotModal
