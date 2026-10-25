@@ -1,55 +1,103 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ServiceItem } from '../../types';
-import { X, Briefcase, Plus } from 'lucide-react';
+import { X, Briefcase, Plus, Save } from 'lucide-react';
+
+export interface ServicioFormData {
+  title: string;
+  price: number;
+  durationMinutes: number;
+  description: string;
+}
 
 interface NewServiceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddService: (service: ServiceItem) => void;
+  onAddService: (service: ServicioFormData) => Promise<void> | void;
+  onUpdateService: (id: string, service: ServicioFormData) => Promise<void> | void;
+  serviceToEdit: ServiceItem | null;
 }
 
 export const NewServiceModal: React.FC<NewServiceModalProps> = ({
   isOpen,
   onClose,
   onAddService,
+  onUpdateService,
+  serviceToEdit,
 }) => {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Barbería & Belleza');
   const [price, setPrice] = useState('35000');
   const [duration, setDuration] = useState('45');
-  const [modality, setModality] = useState('Presencial');
   const [description, setDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isEditing = Boolean(serviceToEdit);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (serviceToEdit) {
+      setTitle(serviceToEdit.title);
+      setPrice(String(serviceToEdit.price));
+      setDuration(String(serviceToEdit.durationMinutes));
+      setDescription(serviceToEdit.description || '');
+    } else {
+      setTitle('');
+      setPrice('35000');
+      setDuration('45');
+      setDescription('');
+    }
+    setError(null);
+  }, [isOpen, serviceToEdit]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    setError(null);
 
-    const newSrv: ServiceItem = {
-      id: `srv-${Date.now()}`,
-      title,
-      category,
-      categorySlug: category.toLowerCase().includes('barber')
-        ? 'barberia'
-        : category.toLowerCase().includes('clase')
-        ? 'clases'
-        : 'general',
-      providerName: 'Laura Morales',
-      providerStudio: 'Laura Morales Studio • Bogotá Chicó Norte',
-      modalityBadge: modality,
-      price: parseInt(price) || 30000,
-      durationMinutes: parseInt(duration) || 45,
-      rating: 5.0,
-      reviewsCount: 1,
-      imageUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCOOA4gaFcqrI965s1tf5LyjFUANtEEFp4-KGEuqZHbsEGF_nu8UvauZ1kFm2Twj4Co7xIS9sT5gUAHOEEdAlesZ3EpZvZazr4Krh6O3dOv4PAwRtp6Eddz4eUvRJYnBseZVI7dY95Tv2tuVhinyvVQnRNWSFjP_LrNw030jAIjgfwkPn90fCPbLzvF8vALQEW9M--fYVksOXEtpcIONwzrn9TZDKaHn5WEaW3_DCH6FugcybBjHiYXRA',
-      description: description || 'Servicio profesional con atención personalizada en Bogotá.',
-      isActive: true,
+    if (!title.trim()) {
+      setError('El nombre del servicio es obligatorio.');
+      return;
+    }
+
+    const precioNum = parseInt(price, 10);
+    const duracionNum = parseInt(duration, 10);
+
+    if (!precioNum || precioNum <= 0) {
+      setError('La tarifa debe ser un número mayor a 0.');
+      return;
+    }
+
+    if (!duracionNum || duracionNum < 5 || duracionNum > 480) {
+      setError('La duración debe estar entre 5 y 480 minutos.');
+      return;
+    }
+
+    const payload: ServicioFormData = {
+      title: title.trim(),
+      price: precioNum,
+      durationMinutes: duracionNum,
+      description: description.trim() || 'Servicio profesional con atención personalizada.',
     };
 
-    onAddService(newSrv);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      if (serviceToEdit) {
+        await onUpdateService(serviceToEdit.id, payload);
+      } else {
+        await onAddService(payload);
+      }
+      onClose();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : `No fue posible ${serviceToEdit ? 'actualizar' : 'publicar'} el servicio`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -68,10 +116,12 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({
           </div>
           <div>
             <h3 className="text-base font-extrabold text-slate-900 font-display">
-              Publicar Nuevo Servicio
+              {isEditing ? 'Editar Servicio' : 'Publicar Nuevo Servicio'}
             </h3>
             <p className="text-xs text-slate-500">
-              Añade un nuevo servicio disponible para reserva por tus clientes.
+              {isEditing
+                ? 'Actualiza la tarifa, duración o descripción de este servicio.'
+                : 'Añade un nuevo servicio disponible para reserva por tus clientes.'}
             </p>
           </div>
         </div>
@@ -91,41 +141,11 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Categoría</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                <option value="Barbería & Belleza">Barbería & Belleza</option>
-                <option value="Clases & Educación">Clases & Educación</option>
-                <option value="Entrenamiento Personal">Entrenamiento Personal</option>
-                <option value="Fotografía">Fotografía</option>
-                <option value="Soporte Técnico">Soporte Técnico</option>
-                <option value="Asesorías">Asesorías</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Modalidad</label>
-              <select
-                value={modality}
-                onChange={(e) => setModality(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                <option value="Presencial">Presencial en local</option>
-                <option value="Virtual">Virtual (Meet / Zoom)</option>
-                <option value="A domicilio">A domicilio</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
               <label className="block font-bold text-slate-700 mb-1">Tarifa (COP)</label>
               <input
                 type="number"
                 required
+                min="1"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -137,6 +157,8 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({
               <input
                 type="number"
                 required
+                min="5"
+                max="480"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -155,6 +177,12 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({
             ></textarea>
           </div>
 
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="pt-2 flex items-center justify-end gap-2">
             <button
               type="button"
@@ -165,10 +193,17 @@ export const NewServiceModal: React.FC<NewServiceModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-all flex items-center gap-1.5"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold shadow-xs transition-all flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" />
-              <span>Publicar servicio</span>
+              {isEditing ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>
+                {isSubmitting
+                  ? 'Guardando...'
+                  : isEditing
+                  ? 'Guardar cambios'
+                  : 'Publicar servicio'}
+              </span>
             </button>
           </div>
         </form>

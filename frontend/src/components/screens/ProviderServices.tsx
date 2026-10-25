@@ -1,19 +1,23 @@
 import React from 'react';
 import { ServiceItem, CurrentView } from '../../types';
-import { Plus, Edit2, Trash2, Clock, MapPin, Star, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, Power, Star, CheckCircle2 } from 'lucide-react';
 
 interface ProviderServicesProps {
   services: ServiceItem[];
   onOpenNewService: () => void;
+  onEditService: (service: ServiceItem) => void;
   onNavigate: (view: CurrentView) => void;
   onToggleActive: (id: string) => void;
+  onDeleteService: (id: string) => void;
 }
 
 export const ProviderServices: React.FC<ProviderServicesProps> = ({
   services,
   onOpenNewService,
+  onEditService,
   onNavigate,
   onToggleActive,
+  onDeleteService,
 }) => {
   return (
     <div className="space-y-6">
@@ -82,9 +86,17 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
                     <span>{srv.durationMinutes} min</span>
                   </div>
-                  <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Activo en catálogo
+                  <span
+                    className={`font-semibold flex items-center gap-1 ${
+                      srv.isActive ? 'text-emerald-600' : 'text-slate-400'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        srv.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                      }`}
+                    ></span>
+                    {srv.isActive ? 'Activo en catálogo' : 'Pausado'}
                   </span>
                 </div>
               </div>
@@ -92,7 +104,7 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
 
             <div className="p-4 pt-0 flex items-center gap-2">
               <button
-                onClick={() => alert(`Editando servicio: ${srv.title}`)}
+                onClick={() => onEditService(srv)}
                 className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-colors flex items-center justify-center gap-1"
               >
                 <Edit2 className="w-3.5 h-3.5" />
@@ -100,8 +112,23 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
               </button>
               <button
                 onClick={() => onToggleActive(srv.id)}
+                className="px-3 py-2 bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 rounded-xl border border-slate-200 transition-colors"
+                title={srv.isActive ? 'Pausar (ocultar del catálogo)' : 'Reactivar en el catálogo'}
+              >
+                <Power className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `¿Eliminar "${srv.title}"? Esta acción no se puede deshacer.`
+                    )
+                  ) {
+                    onDeleteService(srv.id);
+                  }
+                }}
                 className="px-3 py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl border border-slate-200 transition-colors"
-                title="Pausar o despublicar"
+                title="Eliminar servicio (HU06)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
