@@ -15,9 +15,13 @@ import {
   ApiUser,
   cancelBooking,
   createBooking,
+  createRecurringSlots,
   createService,
   createSlot,
   deleteSlot,
+  getProfile,
+  rescheduleBooking,
+  updateProfile,
   updateService,
   getAgenda,
   getAvailableSlots,
@@ -40,12 +44,16 @@ import { ClientDashboard } from './components/screens/ClientDashboard';
 import { ClientExplore } from './components/screens/ClientExplore';
 import { ClientBooking } from './components/screens/ClientBooking';
 import { ClientReservations } from './components/screens/ClientReservations';
+import { ProfileScreen } from './components/screens/ProfileScreen';
 import { BookingConfirmationModal } from './components/modals/BookingConfirmationModal';
 import { CancelBookingModal } from './components/modals/CancelBookingModal';
+import { RescheduleBookingModal } from './components/modals/RescheduleBookingModal';
 import { NewServiceModal } from './components/modals/NewServiceModal';
-import { NewSlotModal } from './components/modals/NewSlotModal';
+import { NewSlotModal, NuevaFranjaRecurrentePayload } from './components/modals/NewSlotModal';
 import { SharePublicLinkModal } from './components/modals/SharePublicLinkModal';
 import { CheckCircle2 } from 'lucide-react';
+
+const DIAS_JAVA = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
 const toFrontendRole = (rol: ApiUser['rol']): UserRole =>
   rol === 'PROVEEDOR' ? 'provider' : 'client';
@@ -272,6 +280,7 @@ export function App() {
   const [selectedServiceToBook, setSelectedServiceToBook] = useState<ServiceItem | null>(null);
   const [confirmedBookingForModal, setConfirmedBookingForModal] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
   const [isNewServiceOpen, setIsNewServiceOpen] = useState(false);
   const [isNewSlotOpen, setIsNewSlotOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -428,6 +437,60 @@ export function App() {
     }
   };
 
+  const handleOpenReschedule = (booking: Booking) => {
+    if (role === 'provider') {
+      showToast('El backend actual permite reprogramar reservas únicamente al cliente dueño.');
+      return;
+    }
+    setBookingToReschedule(booking);
+  };
+
+  const handleLoadRescheduleSlots = async (servicioId: number): Promise<AvailabilitySlot[]> => {
+    const franjas = await getAvailableSlots(servicioId);
+    const service = services.find((item) => item.backendId === servicioId);
+    return franjas.map((slot) => mapSlot(slot, service));
+  };
+
+  const handleConfirmReschedule = async (bookingId: string, newSlotId: string) => {
+    await rescheduleBooking(Number(bookingId), Number(newSlotId));
+    showToast('Reserva reprogramada con éxito.');
+    setBookingToReschedule(null);
+    await loadData(user!);
+  };
+
+  const handleUpdateProfile = async (data: { nombre: string; correo: string; telefono: string }) => {
+    const updated = await updateProfile(data);
+    localStorage.setItem('agendapro_user', JSON.stringify(updated));
+    setUser(updated);
+    showToast('Perfil actualizado con éxito.');
+  };
+
+  const handleAddRecurringSlots = async (payload: NuevaFranjaRecurrentePayload) => {
+    try {
+      const diasSemana = payload.diasSemana.map((dia) => DIAS_JAVA[dia]);
+      const created = await createRecurringSlots(Number(payload.serviceId), {
+        horaInicio: payload.horaInicio,
+        horaFin: payload.horaFin,
+        diasSemana,
+        repetirHasta: payload.repetirHasta,
+        cupoTotal: payload.cupoTotal,
+      });
+
+      const service = services.find((item) => item.id === payload.serviceId);
+      const mapped = created.map((slot) => mapSlot(slot, service));
+      setSlots((prev) => [...mapped, ...prev]);
+      setIsNewSlotOpen(false);
+      showToast(`${created.length} franja(s) publicadas con éxito (HU12).`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'No fue posible publicar las franjas recurrentes');
+    }
+  };
+
+  const handleFilterAgenda = async (fecha?: string, servicioId?: number): Promise<Booking[]> => {
+    const agenda = await getAgenda(fecha, servicioId);
+    return agenda.map((item) => mapBooking(item, services, user));
+  };
+
   const handleNewBookingCreated = async (newBooking: Booking) => {
     setConfirmedBookingForModal(newBooking);
     showToast('¡Cita agendada con éxito!');
@@ -526,8 +589,6 @@ export function App() {
             onLogout={handleLogout}
             pendingBookingsCount={pendingBookingsCount}
             activeClientBookingsCount={activeClientBookingsCount}
-            pendingBookingsCount={pendingBookingsCount}
-            activeClientBookingsCount={activeClientBookingsCount}
             servicesCount={services.length}
             availableSlotsCount={availableSlotsCount}
           />
@@ -574,9 +635,11 @@ export function App() {
                 <ProviderAgenda
                   events={calendarEvents}
                   bookings={bookings}
+                  services={services}
                   onConfirmBooking={handleConfirmBooking}
                   onCancelBooking={handleCancelBooking}
                   onOpenNewSlot={() => setIsNewSlotOpen(true)}
+                  onFilterAgenda={handleFilterAgenda}
                 />
               )}
 
@@ -647,7 +710,12 @@ export function App() {
                   bookings={bookings}
                   onNavigate={setCurrentView}
                   onCancelBooking={handleCancelBooking}
+                  onRescheduleBooking={handleOpenReschedule}
                 />
+              )}
+
+              {currentView === 'profile' && (
+                <ProfileScreen user={user} onSave={handleUpdateProfile} />
               )}
             </main>
           </div>
@@ -669,6 +737,13 @@ export function App() {
         onConfirmCancel={handleConfirmCancelModal}
       />
 
+      <RescheduleBookingModal
+        booking={bookingToReschedule}
+        onClose={() => setBookingToReschedule(null)}
+        onLoadSlots={handleLoadRescheduleSlots}
+        onConfirmReschedule={handleConfirmReschedule}
+      />
+
       <NewServiceModal
         isOpen={isNewServiceOpen}
         onClose={() => setIsNewServiceOpen(false)}
@@ -680,6 +755,7 @@ export function App() {
         services={services}
         onClose={() => setIsNewSlotOpen(false)}
         onAddSlot={handleAddSlot}
+        onAddRecurringSlots={handleAddRecurringSlots}
       />
 
       <SharePublicLinkModal

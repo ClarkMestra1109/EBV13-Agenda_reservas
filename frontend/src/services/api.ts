@@ -4,6 +4,7 @@ export interface ApiUser {
   id: number;
   nombre: string;
   correo: string;
+  telefono?: string | null;
   rol: 'CLIENTE' | 'PROVEEDOR';
 }
 
@@ -183,6 +184,23 @@ export async function createSlot(
   });
 }
 
+/** HU12: publica varias franjas de una vez siguiendo un patrón semanal. */
+export async function createRecurringSlots(
+  serviceId: number,
+  data: {
+    horaInicio: string; // "HH:mm"
+    horaFin: string;
+    diasSemana: string[]; // nombres de java.time.DayOfWeek, ej. "MONDAY"
+    repetirHasta: string; // "YYYY-MM-DD"
+    cupoTotal?: number;
+  }
+) {
+  return request<ApiSlot[]>(`/servicios/${serviceId}/franjas/recurrentes`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function deleteSlot(slotId: number) {
   return request<ApiSlot>(`/franjas/${slotId}`, {
     method: 'DELETE',
@@ -202,6 +220,31 @@ export async function cancelBooking(reservaId: number) {
   });
 }
 
-export async function getAgenda() {
-  return request<ApiBooking[]>('/agenda');
+/** HU16: reprograma una reserva propia a una nueva franja del mismo servicio. */
+export async function rescheduleBooking(reservaId: number, nuevaFranjaId: number) {
+  return request<ApiBooking>(`/reservas/${reservaId}/reprogramar`, {
+    method: 'PUT',
+    body: JSON.stringify({ nuevaFranjaId }),
+  });
+}
+
+/** HU17: agenda vigente. HU18: con filtros opcionales por fecha y/o servicio. */
+export async function getAgenda(fecha?: string, servicioId?: number) {
+  const params = new URLSearchParams();
+  if (fecha) params.set('fecha', fecha);
+  if (servicioId) params.set('servicioId', String(servicioId));
+  const query = params.toString();
+  return request<ApiBooking[]>(`/agenda${query ? `?${query}` : ''}`);
+}
+
+/** HU03: perfil del usuario autenticado. */
+export async function getProfile() {
+  return request<ApiUser>('/usuarios/me');
+}
+
+export async function updateProfile(data: { nombre: string; correo: string; telefono: string }) {
+  return request<ApiUser>('/usuarios/me', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
 }

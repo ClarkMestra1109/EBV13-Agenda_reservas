@@ -20,12 +20,14 @@ interface ClientReservationsProps {
   bookings: Booking[];
   onNavigate: (view: CurrentView) => void;
   onCancelBooking: (booking: Booking) => void;
+  onRescheduleBooking: (booking: Booking) => void;
 }
 
 export const ClientReservations: React.FC<ClientReservationsProps> = ({
   bookings,
   onNavigate,
   onCancelBooking,
+  onRescheduleBooking,
 }) => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history' | 'cancelled'>('upcoming');
 
@@ -220,6 +222,16 @@ export const ClientReservations: React.FC<ClientReservationsProps> = ({
                       <span>Ingresar a Meet</span>
                     </a>
                   ) : null}
+
+                  {b.status === 'confirmed' && (
+                    <button
+                      onClick={() => onRescheduleBooking(b)}
+                      className="w-full py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 rounded-xl border border-blue-200 transition-colors text-center flex items-center justify-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reprogramar</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => onCancelBooking(b)}
