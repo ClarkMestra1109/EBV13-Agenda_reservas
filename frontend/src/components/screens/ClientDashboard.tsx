@@ -10,6 +10,7 @@ import {
   Sparkles,
   ChevronRight,
   Ban,
+  BellRing,
 } from 'lucide-react';
 
 interface ClientDashboardProps {
@@ -111,6 +112,21 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Recordatorio de la próxima cita (reserva real más cercana) */}
+      {nextBooking && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-center gap-3 text-amber-900 shadow-2xs">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+            <BellRing className="w-5 h-5" />
+          </div>
+          <div className="flex-1 text-xs">
+            <p className="font-extrabold text-amber-950">Recordatorio de cita próxima</p>
+            <p className="text-amber-800">
+              Tienes agendado <strong>{nextBooking.serviceTitle}</strong> con {nextBooking.locationName} para el <strong>{nextBooking.date}</strong> a las <strong>{nextBooking.time}</strong>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 3 Metric Cards (datos reales) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

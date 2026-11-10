@@ -93,7 +93,10 @@ public class AuthService {
         token.setExpiracion(Instant.now().plus(EXPIRACION_RECUPERACION_MINUTOS, ChronoUnit.MINUTES));
         tokens.saveAndFlush(token);
 
-        String enlace = urlFrontend + "/restablecer-contrasena?token=" + token.getToken();
+        // El frontend es una SPA sin rutas propias por URL (Vercel no tiene reglas de
+        // reescritura configuradas), así que el enlace apunta a la raíz con el token como
+        // parámetro; App.tsx lo detecta al cargar y abre la pantalla de restablecer.
+        String enlace = urlFrontend + "/?token=" + token.getToken();
         emailService.enviarCorreo(
                 usuario.getCorreo(),
                 "Recupera el acceso a tu cuenta",

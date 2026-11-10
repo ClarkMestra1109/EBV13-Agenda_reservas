@@ -2,6 +2,9 @@ export type UserRole = 'provider' | 'client';
 
 export type CurrentView =
   | 'login'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'profile'
   | 'provider-dashboard'
   | 'provider-reservations'
   | 'provider-agenda'
@@ -10,7 +13,7 @@ export type CurrentView =
   | 'client-dashboard'
   | 'client-explore'
   | 'client-booking'
-  | 'client-reservations'; 
+  | 'client-reservations';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 

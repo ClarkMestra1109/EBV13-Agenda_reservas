@@ -13,9 +13,14 @@ import {
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  onForgotPassword: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegister }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLogin,
+  onRegister,
+  onForgotPassword,
+}) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('provider');
   const [isRegistering, setIsRegistering] = useState(false);
   const [name, setName] = useState('');
@@ -169,7 +174,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegister })
           <div className="bg-white p-7 sm:p-8 rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/50">
             <div className="mb-6">
               <h2 className="text-2xl font-extrabold text-[#0b1c30] tracking-tight font-display">
-                Iniciar sesión
+                {isRegistering ? 'Crear cuenta' : 'Iniciar sesión'}
               </h2>
               <p className="text-xs text-slate-500 mt-1">
                 Ingresa tus credenciales para continuar al panel de control.
@@ -246,12 +251,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegister })
                   <label className="block text-xs font-bold text-slate-700">
                     Contraseña
                   </label>
-                  <button
-                    type="button"
-                    className="text-[11px] font-semibold text-blue-700 hover:underline"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </button>
+                  {!isRegistering && (
+                    <button
+                      type="button"
+                      onClick={onForgotPassword}
+                      className="text-[11px] font-semibold text-blue-700 hover:underline"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  )}
                 </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -274,17 +282,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegister })
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                  />
-                  <span>Recordar sesión en este equipo</span>
-                </label>
-              </div>
+              {!isRegistering && (
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    <span>Recordar sesión en este equipo</span>
+                  </label>
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-700">

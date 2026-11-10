@@ -126,6 +126,34 @@ export async function register(data: RegisterRequest) {
   );
 }
 
+/** HU04: solicita el envío del enlace de recuperación al correo registrado. */
+export async function solicitarRecuperacion(correo: string) {
+  return request<void>(
+    '/auth/recuperar',
+    {
+      method: 'POST',
+      body: JSON.stringify({ correo }),
+    },
+    false
+  );
+}
+
+/** HU04: usa el token recibido para definir una nueva contraseña. */
+export async function restablecerContrasena(
+  token: string,
+  nuevaContrasena: string,
+  confirmarContrasena: string
+) {
+  return request<void>(
+    '/auth/restablecer',
+    {
+      method: 'POST',
+      body: JSON.stringify({ token, nuevaContrasena, confirmarContrasena }),
+    },
+    false
+  );
+}
+
 export async function getCatalogServices() {
   return request<ApiService[]>('/catalogo/servicios');
 }

@@ -31,11 +31,15 @@ import {
   getMyServices,
   login,
   register,
+  solicitarRecuperacion,
+  restablecerContrasena,
 } from './services/api';
 
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginScreen } from './components/screens/LoginScreen';
+import { ForgotPasswordScreen } from './components/screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './components/screens/ResetPasswordScreen';
 import { ProviderDashboard } from './components/screens/ProviderDashboard';
 import { ProviderReservations } from './components/screens/ProviderReservations';
 import { ProviderAgenda } from './components/screens/ProviderAgenda';
@@ -267,13 +271,21 @@ export function App() {
     user ? toFrontendRole(user.rol) : 'provider'
   );
 
-  const [currentView, setCurrentView] = useState<CurrentView>(() =>
-    user
+  // HU04: si el enlace de recuperación trae ?token=..., abrimos directo la pantalla de
+  // restablecer contraseña, sin importar si hay una sesión activa.
+  const [resetToken] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('token') || '';
+  });
+
+  const [currentView, setCurrentView] = useState<CurrentView>(() => {
+    if (resetToken) return 'reset-password';
+    return user
       ? toFrontendRole(user.rol) === 'provider'
         ? 'provider-dashboard'
         : 'client-dashboard'
-      : 'login'
-  );
+      : 'login';
+  });
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -387,6 +399,26 @@ export function App() {
     });
 
     await handleLogin(email, password);
+  };
+
+  /** HU04: pide el enlace de recuperación al correo registrado. */
+  const handleForgotPassword = async (correo: string) => {
+    await solicitarRecuperacion(correo);
+  };
+
+  /** HU04: usa el token para definir una nueva contraseña. */
+  const handleResetPassword = async (
+    token: string,
+    nuevaContrasena: string,
+    confirmarContrasena: string
+  ) => {
+    await restablecerContrasena(token, nuevaContrasena, confirmarContrasena);
+  };
+
+  const goToLoginFromRecovery = () => {
+    // Limpia el ?token= de la URL para que un refresh no vuelva a abrir esta pantalla.
+    window.history.replaceState({}, '', window.location.pathname);
+    setCurrentView('login');
   };
 
   const handleLogout = () => {
@@ -616,8 +648,23 @@ export function App() {
         <div className="fixed top-0 left-0 right-0 z-[60] h-1 bg-blue-600 animate-pulse" />
       )}
 
-      {currentView === 'login' || !user ? (
-        <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />
+      {currentView === 'forgot-password' ? (
+        <ForgotPasswordScreen
+          onRequestRecovery={handleForgotPassword}
+          onBackToLogin={() => setCurrentView('login')}
+        />
+      ) : currentView === 'reset-password' ? (
+        <ResetPasswordScreen
+          initialToken={resetToken}
+          onResetPassword={handleResetPassword}
+          onBackToLogin={goToLoginFromRecovery}
+        />
+      ) : currentView === 'login' || !user ? (
+        <LoginScreen
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+          onForgotPassword={() => setCurrentView('forgot-password')}
+        />
       ) : (
         <div className="flex flex-1 min-h-screen">
           <Sidebar
