@@ -37,7 +37,7 @@ public class UsuarioService {
         }
         usuario.setNombre(req.nombre().trim());
         usuario.setCorreo(correo);
-        usuario.setTelefono(req.telefono() == null ? null : req.telefono().trim());
+        usuario.setTelefono(req.telefono() == null || req.telefono().isBlank() ? null : req.telefono().trim());
         try {
             usuarios.saveAndFlush(usuario);
         } catch (DataIntegrityViolationException e) {

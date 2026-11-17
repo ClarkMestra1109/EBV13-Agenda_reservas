@@ -1,6 +1,7 @@
 package com.fabricaescuela.reservas.dto;
 
 import com.fabricaescuela.reservas.domain.EstadoServicio;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
@@ -13,7 +14,7 @@ import java.math.BigDecimal;
 
 public record ServicioRequest(
         @NotBlank(message = "El nombre del servicio es obligatorio")
-        @Size(max = 100, message = "El nombre no puede superar 100 caracteres")
+        @Size(min = 3, max = 100, message = "El nombre debe tener entre 3 y 100 caracteres")
         String nombre,
 
         @NotBlank(message = "La descripción es obligatoria")
@@ -27,7 +28,8 @@ public record ServicioRequest(
 
         @NotNull(message = "El precio es obligatorio")
         @DecimalMin(value = "0.0", inclusive = false, message = "El precio debe ser mayor que 0")
-        @Digits(integer = 10, fraction = 2, message = "El precio admite hasta 2 decimales")
+        @DecimalMax(value = "50000000", message = "El precio no puede superar 50.000.000 COP")
+        @Digits(integer = 8, fraction = 2, message = "El precio admite hasta 2 decimales")
         BigDecimal precio,
 
         // Opcional: permite activar o desactivar el servicio al actualizarlo (HU06).

@@ -1,5 +1,6 @@
 package com.fabricaescuela.reservas.service;
 
+import com.fabricaescuela.reservas.domain.EstadoFranja;
 import com.fabricaescuela.reservas.domain.EstadoReserva;
 import com.fabricaescuela.reservas.domain.EstadoServicio;
 import com.fabricaescuela.reservas.domain.Servicio;
@@ -8,6 +9,7 @@ import com.fabricaescuela.reservas.dto.CatalogoServicioResponse;
 import com.fabricaescuela.reservas.dto.ServicioRequest;
 import com.fabricaescuela.reservas.dto.ServicioResponse;
 import com.fabricaescuela.reservas.error.ApiException;
+import com.fabricaescuela.reservas.repository.FranjaRepository;
 import com.fabricaescuela.reservas.repository.ReservaRepository;
 import com.fabricaescuela.reservas.repository.ServicioRepository;
 import com.fabricaescuela.reservas.repository.UsuarioRepository;
@@ -23,11 +25,14 @@ public class ServicioService {
     private final ServicioRepository servicios;
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
+    private final FranjaRepository franjas;
 
-    public ServicioService(ServicioRepository servicios, UsuarioRepository usuarios, ReservaRepository reservas) {
+    public ServicioService(ServicioRepository servicios, UsuarioRepository usuarios,
+                           ReservaRepository reservas, FranjaRepository franjas) {
         this.servicios = servicios;
         this.usuarios = usuarios;
         this.reservas = reservas;
+        this.franjas = franjas;
     }
 
     /** HU05: el proveedor autenticado crea un servicio; queda ACTIVO para configurarle su agenda. */
@@ -35,6 +40,7 @@ public class ServicioService {
     public ServicioResponse crear(Long proveedorId, ServicioRequest req) {
         Usuario proveedor = usuarios.findById(proveedorId)
                 .orElseThrow(() -> ApiException.noAutenticado("Debe iniciar sesión para realizar esta operación"));
+        validarNombreUnico(proveedorId, req.nombre(), -1L);
         Servicio servicio = new Servicio();
         servicio.setProveedor(proveedor);
         servicio.setEstado(EstadoServicio.ACTIVO);
@@ -69,6 +75,7 @@ public class ServicioService {
         if (servicio.getEstado() == EstadoServicio.ELIMINADO) {
             throw ApiException.conflicto("El servicio fue eliminado y ya no puede modificarse");
         }
+        validarNombreUnico(proveedorId, req.nombre(), servicioId);
         aplicar(servicio, req);
         return ServicioResponse.desde(servicios.saveAndFlush(servicio));
     }
@@ -93,6 +100,15 @@ public class ServicioService {
         }
         servicio.setEstado(EstadoServicio.ELIMINADO);
         servicios.saveAndFlush(servicio);
+        // Sus horarios futuros dejan de ofrecerse: no debe quedar nada reservable de un
+        // servicio eliminado. (No tienen reservas vigentes: se validó arriba.)
+        franjas.retirarFuturasDeServicio(servicioId, EstadoFranja.PUBLICADA, EstadoFranja.RETIRADA, Instant.now());
+    }
+
+    private void validarNombreUnico(Long proveedorId, String nombre, Long idExcluido) {
+        if (servicios.existeNombreDuplicado(proveedorId, nombre.trim(), EstadoServicio.ELIMINADO, idExcluido)) {
+            throw ApiException.conflicto("Ya tiene un servicio con ese nombre");
+        }
     }
 
     private void aplicar(Servicio servicio, ServicioRequest req) {

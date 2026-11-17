@@ -66,6 +66,20 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
                                             @Param("estado") EstadoReserva estado,
                                             @Param("ahora") Instant ahora);
 
+    /**
+     * Indica si el cliente ya tiene otra reserva confirmada cuyo horario se cruza con el rango
+     * [desde, hasta). {@code reservaExcluida} permite ignorar la propia reserva al reprogramar
+     * (se envía -1 cuando no aplica).
+     */
+    @Query("select case when count(r) > 0 then true else false end from Reserva r "
+            + "where r.cliente.id = :clienteId and r.estado = :estado "
+            + "and r.franja.inicio < :hasta and r.franja.fin > :desde and r.id <> :reservaExcluida")
+    boolean existeCruceDeHorario(@Param("clienteId") Long clienteId,
+                                 @Param("estado") EstadoReserva estado,
+                                 @Param("desde") Instant desde,
+                                 @Param("hasta") Instant hasta,
+                                 @Param("reservaExcluida") Long reservaExcluida);
+
     /** HU19: reservas confirmadas cuya franja empieza dentro de la ventana de recordatorio, sin recordatorio aún. */
     @Query("select r from Reserva r where r.estado = :estado "
             + "and r.franja.inicio between :ahora and :limite "

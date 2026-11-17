@@ -2,6 +2,7 @@ package com.fabricaescuela.reservas.service;
 
 import com.fabricaescuela.reservas.domain.EstadoFranja;
 import com.fabricaescuela.reservas.domain.EstadoReserva;
+import com.fabricaescuela.reservas.domain.EstadoServicio;
 import com.fabricaescuela.reservas.domain.Franja;
 import com.fabricaescuela.reservas.domain.HistorialEstadoReserva;
 import com.fabricaescuela.reservas.domain.Reserva;
@@ -52,11 +53,19 @@ public class ReservaService {
         if (franja.getEstado() != EstadoFranja.PUBLICADA || !franja.getInicio().isAfter(Instant.now())) {
             throw ApiException.conflicto("La franja ya no está disponible");
         }
+        // Un servicio desactivado o eliminado no admite reservas nuevas, aunque se conozca el id de la franja.
+        if (franja.getServicio().getEstado() != EstadoServicio.ACTIVO) {
+            throw ApiException.conflicto("El servicio ya no está disponible para reservas");
+        }
         if (franja.getCuposOcupados() >= franja.getCupoTotal()) {
             throw ApiException.conflicto("No quedan cupos disponibles en esta franja");
         }
         if (reservas.existsByClienteIdAndFranjaIdAndEstado(clienteId, franjaId, EstadoReserva.CONFIRMADA)) {
             throw ApiException.conflicto("Ya tiene una reserva confirmada en esta franja");
+        }
+        if (reservas.existeCruceDeHorario(clienteId, EstadoReserva.CONFIRMADA,
+                franja.getInicio(), franja.getFin(), -1L)) {
+            throw ApiException.conflicto("Ya tiene otra reserva confirmada en ese mismo horario");
         }
         Usuario cliente = usuarios.findById(clienteId)
                 .orElseThrow(() -> ApiException.noAutenticado("Debe iniciar sesión para realizar esta operación"));
@@ -162,8 +171,15 @@ public class ReservaService {
         if (franjaNueva.getEstado() != EstadoFranja.PUBLICADA || !franjaNueva.getInicio().isAfter(Instant.now())) {
             throw ApiException.conflicto("La franja seleccionada ya no está disponible");
         }
+        if (franjaNueva.getServicio().getEstado() != EstadoServicio.ACTIVO) {
+            throw ApiException.conflicto("El servicio ya no está disponible para reservas");
+        }
         if (franjaNueva.getCuposOcupados() >= franjaNueva.getCupoTotal()) {
             throw ApiException.conflicto("La franja seleccionada no tiene cupos disponibles");
+        }
+        if (reservas.existeCruceDeHorario(clienteId, EstadoReserva.CONFIRMADA,
+                franjaNueva.getInicio(), franjaNueva.getFin(), reservaId)) {
+            throw ApiException.conflicto("Ya tiene otra reserva confirmada en ese mismo horario");
         }
 
         franjaAnterior.setCuposOcupados(Math.max(0, franjaAnterior.getCuposOcupados() - 1));

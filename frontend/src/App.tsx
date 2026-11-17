@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   UserRole,
   CurrentView,
@@ -56,7 +56,7 @@ import { RescheduleBookingModal } from './components/modals/RescheduleBookingMod
 import { NewServiceModal, ServicioFormData } from './components/modals/NewServiceModal';
 import { NewSlotModal, NuevaFranjaRecurrentePayload } from './components/modals/NewSlotModal';
 import { SharePublicLinkModal } from './components/modals/SharePublicLinkModal';
-import { CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const DIAS_JAVA = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
@@ -301,9 +301,19 @@ export function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const showToast = (msg: string) => {
+  const [toastType, setToastType] = useState<'ok' | 'error'>('ok');
+  const toastTimer = useRef<number | undefined>(undefined);
+
+  const showToast = (msg: string, type: 'ok' | 'error' = 'ok') => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setToastType(type);
+    // Un aviso nuevo reemplaza al anterior y reinicia su temporizador. Los errores
+    // permanecen más tiempo en pantalla para que alcancen a leerse.
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(
+      () => setToastMessage(null),
+      type === 'error' ? 6000 : 3500
+    );
   };
 
   const loadData = async (loggedUser: ApiUser) => {
@@ -352,7 +362,7 @@ export function App() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No fue posible cargar los datos';
-      showToast(message);
+      showToast(message, 'error');
 
       if (!localStorage.getItem('agendapro_token')) {
         handleLogout();
@@ -474,7 +484,7 @@ export function App() {
       setBookingToCancel(null);
       showToast('Reserva cancelada y cupo liberado en el sistema.');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible cancelar la reserva');
+      showToast(err instanceof Error ? err.message : 'No fue posible cancelar la reserva', 'error');
     }
   };
 
@@ -506,25 +516,27 @@ export function App() {
     showToast('Perfil actualizado con éxito.');
   };
 
+  // Si el backend rechaza el patrón, el error se propaga al modal para mostrarse dentro del
+  // formulario (sin cerrarlo ni perder lo que el usuario escribió).
   const handleAddRecurringSlots = async (payload: NuevaFranjaRecurrentePayload) => {
-    try {
-      const diasSemana = payload.diasSemana.map((dia) => DIAS_JAVA[dia]);
-      const created = await createRecurringSlots(Number(payload.serviceId), {
-        horaInicio: payload.horaInicio,
-        horaFin: payload.horaFin,
-        diasSemana,
-        repetirHasta: payload.repetirHasta,
-        cupoTotal: payload.cupoTotal,
-      });
+    const diasSemana = payload.diasSemana.map((dia) => DIAS_JAVA[dia]);
+    const created = await createRecurringSlots(Number(payload.serviceId), {
+      horaInicio: payload.horaInicio,
+      horaFin: payload.horaFin,
+      diasSemana,
+      repetirHasta: payload.repetirHasta,
+      cupoTotal: payload.cupoTotal,
+    });
 
-      const service = services.find((item) => item.id === payload.serviceId);
-      const mapped = created.map((slot) => mapSlot(slot, service));
-      setSlots((prev) => [...mapped, ...prev]);
-      setIsNewSlotOpen(false);
-      showToast(`${created.length} franja(s) publicadas con éxito (HU12).`);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible publicar las franjas recurrentes');
-    }
+    const service = services.find((item) => item.id === payload.serviceId);
+    const mapped = created.map((slot) => mapSlot(slot, service));
+    setSlots((prev) => [...mapped, ...prev]);
+    setIsNewSlotOpen(false);
+    showToast(
+      created.length === 1
+        ? '1 horario publicado con éxito.'
+        : `${created.length} horarios publicados con éxito.`
+    );
   };
 
   const handleFilterAgenda = async (fecha?: string, servicioId?: number): Promise<Booking[]> => {
@@ -574,7 +586,7 @@ export function App() {
       setSlots((prev) => prev.filter((s) => s.serviceId !== id));
       showToast('Servicio eliminado.');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible eliminar el servicio');
+      showToast(err instanceof Error ? err.message : 'No fue posible eliminar el servicio', 'error');
     }
   };
 
@@ -588,25 +600,22 @@ export function App() {
     setIsNewServiceOpen(true);
   };
 
+  // Igual que en la publicación recurrente: los errores se muestran dentro del modal.
   const handleAddSlot = async (slot: AvailabilitySlot) => {
-    try {
-      if (!slot.serviceId || !slot.inicio || !slot.fin) {
-        throw new Error('Debes seleccionar un servicio, fecha, hora de inicio y hora de fin.');
-      }
-
-      const created = await createSlot(Number(slot.serviceId), {
-        inicio: slot.inicio,
-        fin: slot.fin,
-        cupoTotal: slot.cupoTotal,
-      });
-
-      const service = services.find((item) => item.id === slot.serviceId);
-      setSlots((prev) => [mapSlot(created, service), ...prev]);
-      setIsNewSlotOpen(false);
-      showToast('Nueva franja horaria publicada con éxito.');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible publicar la franja');
+    if (!slot.serviceId || !slot.inicio || !slot.fin) {
+      throw new Error('Debes seleccionar un servicio, fecha, hora de inicio y hora de fin.');
     }
+
+    const created = await createSlot(Number(slot.serviceId), {
+      inicio: slot.inicio,
+      fin: slot.fin,
+      cupoTotal: slot.cupoTotal,
+    });
+
+    const service = services.find((item) => item.id === slot.serviceId);
+    setSlots((prev) => [mapSlot(created, service), ...prev]);
+    setIsNewSlotOpen(false);
+    showToast('Nuevo horario publicado con éxito.');
   };
 
   const handleDeleteSlot = async (slotId: string) => {
@@ -615,7 +624,7 @@ export function App() {
       setSlots((prev) => prev.filter((slot) => slot.id !== slotId));
       showToast('Franja horaria retirada.');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'No fue posible retirar la franja');
+      showToast(err instanceof Error ? err.message : 'No fue posible retirar la franja', 'error');
     }
   };
 
@@ -638,8 +647,17 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#f8faff] text-[#0b1c30] flex flex-col selection:bg-blue-100 selection:text-blue-900 font-sans">
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-[#0b1c30] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-700 animate-in slide-in-from-bottom-3 text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div
+          role={toastType === 'error' ? 'alert' : 'status'}
+          className={`fixed bottom-5 right-5 z-[70] max-w-sm text-white px-4 py-3 rounded-2xl shadow-xl flex items-start gap-2.5 border animate-in slide-in-from-bottom-3 text-xs font-semibold ${
+            toastType === 'error' ? 'bg-red-700 border-red-800' : 'bg-[#0b1c30] border-slate-700'
+          }`}
+        >
+          {toastType === 'error' ? (
+            <AlertCircle className="w-4 h-4 text-white shrink-0 mt-0.5" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          )}
           <span>{toastMessage}</span>
         </div>
       )}
@@ -754,7 +772,7 @@ export function App() {
                       );
                       showToast('Estado del servicio actualizado.');
                     } catch (err) {
-                      showToast(err instanceof Error ? err.message : 'No fue posible actualizar el servicio');
+                      showToast(err instanceof Error ? err.message : 'No fue posible actualizar el servicio', 'error');
                     }
                   }}
                 />

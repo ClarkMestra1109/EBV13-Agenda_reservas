@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   UserCheck
 } from 'lucide-react';
+import { validarContrasena, validarCorreo, validarNombrePersona } from '../../utils/validation';
 
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -38,13 +39,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validación previa con mensajes claros; el backend vuelve a validar todo.
+    const problema = isRegistering
+      ? validarNombrePersona(name) || validarCorreo(email) || validarContrasena(password)
+      : validarCorreo(email) || (password ? null : 'La contraseña es obligatoria.');
+    if (problema) {
+      setError(problema);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (isRegistering) {
-        await onRegister(name, email, password, selectedRole);
+        await onRegister(name.trim(), email.trim(), password, selectedRole);
       } else {
-        await onLogin(email, password);
+        await onLogin(email.trim(), password);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible completar la operación');
@@ -207,7 +218,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
               {isRegistering && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -218,7 +229,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <input
                       id="register-name-input"
                       type="text"
-                      required
+                      maxLength={100}
+                      autoComplete="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-medium"
@@ -237,7 +249,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   <input
                     id="login-email-input"
                     type="email"
-                    required
+                    maxLength={150}
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-medium"
@@ -266,11 +279,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   <input
                     id="login-password-input"
                     type={showPassword ? 'text' : 'password'}
-                    required
+                    maxLength={isRegistering ? 72 : 200}
+                    autoComplete={isRegistering ? 'new-password' : 'current-password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all font-medium"
-                    placeholder="Tu contraseña secreta"
+                    placeholder={
+                      isRegistering ? 'Mínimo 8 caracteres, con letras y números' : 'Tu contraseña'
+                    }
                   />
                   <button
                     type="button"
@@ -297,7 +313,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               )}
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-700">
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-700">
                   {error}
                 </div>
               )}

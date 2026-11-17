@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ApiUser } from '../../services/api';
 import { UserCircle, Save, Mail, Phone, ShieldCheck } from 'lucide-react';
+import {
+  normalizarTelefono,
+  validarCorreo,
+  validarNombrePersona,
+  validarTelefono,
+} from '../../utils/validation';
 
 interface ProfileScreenProps {
   user: ApiUser;
@@ -26,14 +32,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
     setError(null);
     setSuccess(false);
 
-    if (!nombre.trim() || !correo.trim()) {
-      setError('El nombre y el correo son obligatorios.');
+    const problema =
+      validarNombrePersona(nombre) || validarCorreo(correo) || validarTelefono(telefono);
+    if (problema) {
+      setError(problema);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await onSave({ nombre: nombre.trim(), correo: correo.trim(), telefono: telefono.trim() });
+      await onSave({
+        nombre: nombre.trim(),
+        correo: correo.trim(),
+        telefono: normalizarTelefono(telefono),
+      });
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible actualizar el perfil.');
@@ -49,7 +61,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
           Mi perfil
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Actualiza tus datos personales. Estos cambios se guardan directamente en el backend.
+          Actualiza tus datos personales. Los cambios se guardan en tu cuenta.
         </p>
       </div>
 
@@ -66,12 +78,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
           <div>
             <label className="block font-bold text-slate-700 mb-1.5">Nombre completo</label>
             <input
               type="text"
-              required
+              maxLength={100}
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -85,7 +97,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
             </label>
             <input
               type="email"
-              required
+              maxLength={150}
               value={correo}
               onChange={(e) => setCorreo(e.target.value)}
               className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -99,6 +111,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
             </label>
             <input
               type="tel"
+              inputMode="tel"
+              maxLength={20}
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="Ej. 3001234567"

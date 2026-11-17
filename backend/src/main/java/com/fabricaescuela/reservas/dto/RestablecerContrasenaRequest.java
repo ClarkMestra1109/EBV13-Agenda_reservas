@@ -8,8 +8,8 @@ public record RestablecerContrasenaRequest(
         String token,
 
         @NotBlank(message = "La nueva contraseña es obligatoria")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
-                message = "La contraseña debe tener al menos 8 caracteres, con letras y números")
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,72}$",
+                message = "La contraseña debe tener entre 8 y 72 caracteres, con letras y números")
         String nuevaContrasena,
 
         @NotBlank(message = "Debe confirmar la nueva contraseña")

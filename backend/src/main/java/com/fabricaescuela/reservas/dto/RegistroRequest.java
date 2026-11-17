@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 public record RegistroRequest(
         @NotBlank(message = "El nombre es obligatorio")
         @Size(max = 100, message = "El nombre no puede superar 100 caracteres")
+        @Pattern(regexp = "^$|^(?=.*\\p{L}).{2,}$",
+                message = "El nombre debe tener al menos 2 caracteres e incluir letras")
         String nombre,
 
         @NotBlank(message = "El correo electrónico es obligatorio")
@@ -18,8 +20,8 @@ public record RegistroRequest(
         String correo,
 
         @NotBlank(message = "La contraseña es obligatoria")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
-                message = "La contraseña debe tener al menos 8 caracteres, con letras y números")
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,72}$",
+                message = "La contraseña debe tener entre 8 y 72 caracteres, con letras y números")
         String contrasena,
 
         @NotNull(message = "El rol es obligatorio")

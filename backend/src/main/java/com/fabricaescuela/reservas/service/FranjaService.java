@@ -13,9 +13,11 @@ import com.fabricaescuela.reservas.repository.ServicioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +27,12 @@ public class FranjaService {
     private static final int CUPO_POR_DEFECTO = 1;
     // Zona horaria de referencia del equipo (Fábrica Escuela, Colombia).
     private static final ZoneId ZONA = ZoneId.of("America/Bogota");
+    // Reglas de negocio de la agenda.
+    private static final int MESES_MAX_ANTICIPACION = 6;   // no se publica a más de 6 meses
+    private static final int MESES_MAX_RECURRENCIA = 3;    // un patrón semanal cubre máximo 3 meses
+    private static final Duration DURACION_MAX_FRANJA = Duration.ofHours(12);
+    private static final DateTimeFormatter FORMATO_CRUCE =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZONA);
 
     private final FranjaRepository franjas;
     private final ServicioRepository servicios;
@@ -37,7 +45,7 @@ public class FranjaService {
     /** HU10: el proveedor publica una franja futura y válida para uno de sus servicios. */
     @Transactional
     public FranjaResponse publicar(Long proveedorId, Long servicioId, FranjaRequest req) {
-        Servicio servicio = servicioPropio(proveedorId, servicioId);
+        Servicio servicio = servicioPropioBloqueado(proveedorId, servicioId);
         if (servicio.getEstado() != EstadoServicio.ACTIVO) {
             throw ApiException.conflicto("El servicio no está activo");
         }
@@ -47,8 +55,16 @@ public class FranjaService {
             throw ApiException.invalido("El rango de la franja no es válido: el fin debe ser posterior al inicio");
         }
         if (!inicio.isAfter(Instant.now())) {
-            throw ApiException.invalido("La franja debe ser futura");
+            throw ApiException.invalido("La franja debe ser futura: no se pueden publicar horarios en el pasado");
         }
+        Instant limite = LocalDate.now(ZONA).plusMonths(MESES_MAX_ANTICIPACION).plusDays(1)
+                .atStartOfDay(ZONA).toInstant();
+        if (!inicio.isBefore(limite)) {
+            throw ApiException.invalido("Solo se pueden publicar horarios con máximo "
+                    + MESES_MAX_ANTICIPACION + " meses de anticipación");
+        }
+        validarDuracion(servicio, inicio, fin);
+        validarSinCruces(servicioId, inicio, fin);
         Franja franja = crearFranja(servicio, inicio, fin, req.cupoTotal());
         return FranjaResponse.desde(franjas.saveAndFlush(franja));
     }
@@ -61,7 +77,7 @@ public class FranjaService {
      */
     @Transactional
     public List<FranjaResponse> publicarRecurrente(Long proveedorId, Long servicioId, FranjaRecurrenteRequest req) {
-        Servicio servicio = servicioPropio(proveedorId, servicioId);
+        Servicio servicio = servicioPropioBloqueado(proveedorId, servicioId);
         if (servicio.getEstado() != EstadoServicio.ACTIVO) {
             throw ApiException.conflicto("El servicio no está activo");
         }
@@ -71,6 +87,11 @@ public class FranjaService {
         LocalDate hoy = LocalDate.now(ZONA);
         if (!req.repetirHasta().isAfter(hoy)) {
             throw ApiException.invalido("La fecha límite de repetición debe ser posterior a hoy");
+        }
+        // Sin este tope, una fecha muy lejana generaría miles de franjas en una sola petición.
+        if (req.repetirHasta().isAfter(hoy.plusMonths(MESES_MAX_RECURRENCIA))) {
+            throw ApiException.invalido("La repetición puede cubrir máximo "
+                    + MESES_MAX_RECURRENCIA + " meses a partir de hoy");
         }
 
         List<Franja> nuevas = new ArrayList<>();
@@ -84,6 +105,8 @@ public class FranjaService {
             if (!inicio.isAfter(ahora)) {
                 continue; // la ocurrencia de hoy ya pasó; no es un error, se omite.
             }
+            validarDuracion(servicio, inicio, fin);
+            validarSinCruces(servicioId, inicio, fin);
             nuevas.add(crearFranja(servicio, inicio, fin, req.cupoTotal()));
         }
 
@@ -92,6 +115,30 @@ public class FranjaService {
                     "El patrón no genera ninguna ocurrencia futura antes de la fecha límite");
         }
         return franjas.saveAll(nuevas).stream().map(FranjaResponse::desde).toList();
+    }
+
+    /** La franja debe alcanzar para prestar el servicio y no puede ser desproporcionada. */
+    private void validarDuracion(Servicio servicio, Instant inicio, Instant fin) {
+        Duration duracion = Duration.between(inicio, fin);
+        if (duracion.toMinutes() < servicio.getDuracionMin()) {
+            throw ApiException.invalido("El horario debe durar al menos " + servicio.getDuracionMin()
+                    + " minutos, que es la duración del servicio");
+        }
+        if (duracion.compareTo(DURACION_MAX_FRANJA) > 0) {
+            throw ApiException.invalido("Un horario no puede durar más de "
+                    + DURACION_MAX_FRANJA.toHours() + " horas");
+        }
+    }
+
+    /** Un mismo servicio no puede tener dos horarios publicados que se crucen. */
+    private void validarSinCruces(Long servicioId, Instant inicio, Instant fin) {
+        List<Franja> cruces = franjas.solapadas(servicioId, EstadoFranja.PUBLICADA, inicio, fin);
+        if (!cruces.isEmpty()) {
+            Franja existente = cruces.get(0);
+            throw ApiException.conflicto("Ya existe un horario publicado para este servicio que se cruza: "
+                    + FORMATO_CRUCE.format(existente.getInicio()) + " - "
+                    + DateTimeFormatter.ofPattern("HH:mm").withZone(ZONA).format(existente.getFin()));
+        }
     }
 
     private Franja crearFranja(Servicio servicio, Instant inicio, Instant fin, Integer cupoTotal) {
@@ -149,6 +196,16 @@ public class FranjaService {
         return franjas.disponibles(servicioId, EstadoFranja.PUBLICADA, Instant.now()).stream()
                 .map(FranjaResponse::desde)
                 .toList();
+    }
+
+    /** Igual que {@link #servicioPropio}, pero bloqueando la fila para serializar publicaciones. */
+    private Servicio servicioPropioBloqueado(Long proveedorId, Long servicioId) {
+        Servicio servicio = servicios.buscarParaActualizar(servicioId)
+                .orElseThrow(() -> ApiException.noEncontrado("El servicio no existe"));
+        if (!servicio.getProveedor().getId().equals(proveedorId)) {
+            throw ApiException.prohibido("No tiene permiso sobre este servicio");
+        }
+        return servicio;
     }
 
     private Servicio servicioPropio(Long proveedorId, Long servicioId) {

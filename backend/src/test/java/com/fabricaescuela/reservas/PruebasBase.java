@@ -15,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,6 +31,9 @@ abstract class PruebasBase {
 
     @Autowired
     protected ObjectMapper om;
+
+    /** Desplaza cada franja de prueba a un horario distinto para que nunca se crucen entre sí. */
+    private static final AtomicInteger CONSECUTIVO_FRANJA = new AtomicInteger();
 
     protected ResultActions enviar(MockHttpServletRequestBuilder base, Object cuerpo, String token) throws Exception {
         MockHttpServletRequestBuilder req = base
@@ -76,15 +80,33 @@ abstract class PruebasBase {
     }
 
     protected long crearServicio(String token) throws Exception {
-        String respuesta = enviar(post("/api/servicios"), servicioValido(), token)
+        return crearServicio(token, "Corte de cabello");
+    }
+
+    /** Un mismo proveedor no puede repetir nombre de servicio: usar esta variante para el segundo. */
+    protected long crearServicio(String token, String nombre) throws Exception {
+        Map<String, Object> cuerpo = servicioValido();
+        cuerpo.put("nombre", nombre);
+        String respuesta = enviar(post("/api/servicios"), cuerpo, token)
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return om.readTree(respuesta).get("id").asLong();
     }
 
-    /** Publica una franja que empieza dentro de 2 días y dura 1 hora. */
+    /**
+     * Publica una franja de 1 hora que empieza dentro de 2 días o más. Cada llamada usa un
+     * horario distinto (separado 2 horas del anterior) porque el sistema no admite horarios
+     * cruzados en un mismo servicio ni dos reservas del mismo cliente a la misma hora.
+     */
     protected long publicarFranja(String tokenProveedor, long servicioId, int cupos) throws Exception {
-        OffsetDateTime inicio = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2);
+        OffsetDateTime inicio = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2)
+                .plusHours(2L * CONSECUTIVO_FRANJA.getAndIncrement());
+        return publicarFranjaEn(tokenProveedor, servicioId, inicio, cupos);
+    }
+
+    /** Publica una franja de 1 hora en el instante indicado. */
+    protected long publicarFranjaEn(String tokenProveedor, long servicioId, OffsetDateTime inicio, int cupos)
+            throws Exception {
         String respuesta = enviar(post("/api/servicios/" + servicioId + "/franjas"),
                 mapa("inicio", inicio.toString(), "fin", inicio.plusHours(1).toString(), "cupoTotal", cupos),
                 tokenProveedor)

@@ -11,12 +11,14 @@ import com.fabricaescuela.reservas.error.ApiException;
 import com.fabricaescuela.reservas.repository.TokenRecuperacionRepository;
 import com.fabricaescuela.reservas.repository.UsuarioRepository;
 import com.fabricaescuela.reservas.security.JwtService;
+import com.fabricaescuela.reservas.security.LimitadorIntentos;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -27,6 +29,11 @@ public class AuthService {
 
     private static final String CORREO_REGISTRADO = "El correo electrónico ya se encuentra registrado";
     private static final long EXPIRACION_RECUPERACION_MINUTOS = 30;
+    // Límite de intentos: 5 inicios de sesión fallidos o 3 solicitudes de recuperación por
+    // correo cada 15 minutos.
+    private static final int MAX_LOGIN_FALLIDOS = 5;
+    private static final int MAX_SOLICITUDES_RECUPERACION = 3;
+    private static final Duration VENTANA_INTENTOS = Duration.ofMinutes(15);
 
     private final UsuarioRepository usuarios;
     private final PasswordEncoder encoder;
@@ -34,10 +41,13 @@ public class AuthService {
     private final TokenRecuperacionRepository tokens;
     private final EmailService emailService;
     private final String urlFrontend;
+    private final LimitadorIntentos limitador;
 
     public AuthService(UsuarioRepository usuarios, PasswordEncoder encoder, JwtService jwt,
                        TokenRecuperacionRepository tokens, EmailService emailService,
+                       LimitadorIntentos limitador,
                        @Value("${app.frontend.url}") String urlFrontend) {
+        this.limitador = limitador;
         this.usuarios = usuarios;
         this.encoder = encoder;
         this.jwt = jwt;
@@ -70,9 +80,21 @@ public class AuthService {
     /** HU02: iniciar sesión. El mensaje es el mismo si falla el correo o la contraseña. */
     @Transactional(readOnly = true)
     public AuthResponse iniciarSesion(LoginRequest req) {
-        Usuario usuario = usuarios.findByCorreo(normalizar(req.correo()))
+        String correo = normalizar(req.correo());
+        String clave = "login:" + correo;
+        long espera = limitador.minutosDeBloqueo(clave, MAX_LOGIN_FALLIDOS, VENTANA_INTENTOS);
+        if (espera > 0) {
+            throw ApiException.demasiadosIntentos(
+                    "Demasiados intentos fallidos. Intente de nuevo en " + espera + " minuto(s)");
+        }
+        Usuario usuario = usuarios.findByCorreo(correo)
                 .filter(u -> encoder.matches(req.contrasena(), u.getContrasenaHash()))
-                .orElseThrow(() -> ApiException.noAutenticado("Credenciales incorrectas"));
+                .orElse(null);
+        if (usuario == null) {
+            limitador.registrar(clave, VENTANA_INTENTOS);
+            throw ApiException.noAutenticado("Credenciales incorrectas");
+        }
+        limitador.limpiar(clave);
         return new AuthResponse(jwt.generar(usuario), UsuarioResponse.desde(usuario));
     }
 
@@ -83,9 +105,21 @@ public class AuthService {
      */
     @Transactional
     public void solicitarRecuperacion(String correo) {
-        Usuario usuario = usuarios.findByCorreo(normalizar(correo))
+        String correoNormalizado = normalizar(correo);
+        String clave = "recuperar:" + correoNormalizado;
+        long espera = limitador.minutosDeBloqueo(clave, MAX_SOLICITUDES_RECUPERACION, VENTANA_INTENTOS);
+        if (espera > 0) {
+            throw ApiException.demasiadosIntentos(
+                    "Demasiadas solicitudes de recuperación. Intente de nuevo en " + espera + " minuto(s)");
+        }
+        limitador.registrar(clave, VENTANA_INTENTOS);
+
+        Usuario usuario = usuarios.findByCorreo(correoNormalizado)
                 .orElseThrow(() -> ApiException.noEncontrado(
                         "No es posible realizar la recuperación con los datos proporcionados"));
+
+        // Solo el enlace más reciente es válido: los anteriores quedan anulados.
+        tokens.invalidarVigentesDe(usuario.getId());
 
         TokenRecuperacion token = new TokenRecuperacion();
         token.setUsuario(usuario);
@@ -120,6 +154,10 @@ public class AuthService {
         token.setUsado(true);
         usuarios.saveAndFlush(usuario);
         tokens.saveAndFlush(token);
+        // Tras el cambio no debe quedar ningún otro enlace utilizable, y se levanta el bloqueo
+        // por intentos fallidos para que el usuario pueda entrar con su nueva contraseña.
+        tokens.invalidarVigentesDe(usuario.getId());
+        limitador.limpiar("login:" + usuario.getCorreo());
     }
 
     private String normalizar(String correo) {

@@ -5,6 +5,7 @@ import com.fabricaescuela.reservas.domain.Franja;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,4 +31,24 @@ public interface FranjaRepository extends JpaRepository<Franja, Long> {
     List<Franja> disponibles(@Param("servicioId") Long servicioId,
                              @Param("estado") EstadoFranja estado,
                              @Param("ahora") Instant ahora);
+
+    /**
+     * Franjas vigentes de un servicio que se cruzan con el rango [desde, hasta). Dos rangos
+     * se cruzan cuando cada uno empieza antes de que termine el otro.
+     */
+    @Query("select f from Franja f where f.servicio.id = :servicioId and f.estado = :estado "
+            + "and f.inicio < :hasta and f.fin > :desde order by f.inicio")
+    List<Franja> solapadas(@Param("servicioId") Long servicioId,
+                           @Param("estado") EstadoFranja estado,
+                           @Param("desde") Instant desde,
+                           @Param("hasta") Instant hasta);
+
+    /** Al eliminar un servicio, sus franjas futuras dejan de ofrecerse. */
+    @Modifying(flushAutomatically = true)
+    @Query("update Franja f set f.estado = :nuevo where f.servicio.id = :servicioId "
+            + "and f.estado = :actual and f.inicio > :ahora")
+    int retirarFuturasDeServicio(@Param("servicioId") Long servicioId,
+                                 @Param("actual") EstadoFranja actual,
+                                 @Param("nuevo") EstadoFranja nuevo,
+                                 @Param("ahora") Instant ahora);
 }

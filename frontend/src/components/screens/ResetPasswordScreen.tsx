@@ -36,8 +36,8 @@ export const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({
       setError('La confirmación no coincide con la nueva contraseña.');
       return;
     }
-    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
-      setError('La contraseña debe tener al menos 8 caracteres, con letras y números.');
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,72}$/.test(password)) {
+      setError('La contraseña debe tener entre 8 y 72 caracteres, con letras y números.');
       return;
     }
 

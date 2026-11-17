@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Size;
 public record ActualizarPerfilRequest(
         @NotBlank(message = "El nombre es obligatorio")
         @Size(max = 100, message = "El nombre no puede superar 100 caracteres")
+        @Pattern(regexp = "^$|^(?=.*\\p{L}).{2,}$",
+                message = "El nombre debe tener al menos 2 caracteres e incluir letras")
         String nombre,
 
         @NotBlank(message = "El correo electrónico es obligatorio")
@@ -17,7 +19,9 @@ public record ActualizarPerfilRequest(
         String correo,
 
         // Opcional: el teléfono no es un campo obligatorio en el registro original.
-        @Size(max = 20, message = "El teléfono no puede superar 20 caracteres")
+        // Si se envía, solo dígitos (7 a 15) con un "+" inicial opcional para el indicativo.
+        @Pattern(regexp = "^$|^\\+?[0-9]{7,15}$",
+                message = "El teléfono debe tener entre 7 y 15 dígitos, sin letras ni espacios")
         String telefono
 ) {
 }

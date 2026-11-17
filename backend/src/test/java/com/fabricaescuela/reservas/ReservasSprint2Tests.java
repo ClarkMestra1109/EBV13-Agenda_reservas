@@ -252,7 +252,7 @@ class ReservasSprint2Tests extends PruebasBase {
         String proveedor = registrarYLogin("PROVEEDOR");
         String cliente = registrarYLogin("CLIENTE");
         long servicioA = crearServicio(proveedor);
-        long servicioB = crearServicio(proveedor);
+        long servicioB = crearServicio(proveedor, "Barba");
         reservar(cliente, publicarFranja(proveedor, servicioA, 1));
         reservar(cliente, publicarFranja(proveedor, servicioB, 1));
 
@@ -267,7 +267,7 @@ class ReservasSprint2Tests extends PruebasBase {
         String proveedor = registrarYLogin("PROVEEDOR");
         String cliente = registrarYLogin("CLIENTE");
         long servicioA = crearServicio(proveedor);
-        long servicioB = crearServicio(proveedor); // sin ninguna reserva
+        long servicioB = crearServicio(proveedor, "Barba"); // sin ninguna reserva
         reservar(cliente, publicarFranja(proveedor, servicioA, 1));
 
         consultar(get("/api/agenda?servicioId=" + servicioB), cliente)

@@ -76,10 +76,18 @@ async function request<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    // El navegador no logró conectarse (servidor iniciando, sin internet o bloqueado por CORS).
+    throw new Error(
+      'No fue posible conectar con el servidor. Revisa tu conexión; si el servicio estaba inactivo puede tardar cerca de un minuto en responder. Intenta de nuevo.'
+    );
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const body = contentType.includes('application/json')
@@ -87,10 +95,19 @@ async function request<T>(
     : await response.text();
 
   if (!response.ok) {
-    const message =
+    let message =
       typeof body === 'object' && body
         ? body.mensaje || body.message || 'La operación no pudo completarse'
         : body || 'La operación no pudo completarse';
+
+    // Errores de validación: el backend envía un mensaje por campo. Se muestran todos para
+    // que el usuario sepa exactamente qué corregir, en vez de un aviso genérico.
+    if (typeof body === 'object' && body && body.errores && typeof body.errores === 'object') {
+      const detalles = Array.from(new Set(Object.values(body.errores as Record<string, string>)));
+      if (detalles.length > 0) {
+        message = detalles.join('. ') + '.';
+      }
+    }
 
     if (response.status === 401) {
       localStorage.removeItem('agendapro_token');
