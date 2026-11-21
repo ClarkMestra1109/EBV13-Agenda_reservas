@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { ServiceImage } from '../ServiceImage';
+import { formatDuration } from '../../utils/formatDuration';
 import { Booking, ServiceItem, CurrentView } from '../../types';
 import {
   Compass,
@@ -75,7 +77,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
+      <div className="bg-[#223f99] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
@@ -248,7 +250,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold block">DURACIÓN</span>
                     <span className="font-bold text-slate-800">
-                      {nextBooking.durationMinutes} minutos
+                      {formatDuration(nextBooking.durationMinutes)}
                     </span>
                   </div>
                 </div>
@@ -386,19 +388,19 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 className="rounded-2xl border border-slate-200/80 overflow-hidden hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between group bg-[#fbfcfe]"
               >
                 <div>
-                  <div className="h-40 relative overflow-hidden">
-                    <img
-                      src={service.imageUrl}
-                      alt={service.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <ServiceImage
+                    imageUrl={service.imageUrl}
+                    title={service.title}
+                    className="h-40"
+                    imageClassName="group-hover:scale-105 transition-transform duration-300"
+                  >
                     <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-extrabold px-2 py-0.5 rounded">
                       {service.modalityBadge}
                     </span>
                     <span className="absolute bottom-2.5 right-2.5 bg-white/90 backdrop-blur-sm text-slate-900 text-xs font-extrabold px-2 py-0.5 rounded-lg shadow-2xs">
                       ${service.price.toLocaleString('es-CO')} COP
                     </span>
-                  </div>
+                  </ServiceImage>
 
                   <div className="p-4 space-y-2">
                     <div className="flex items-center justify-between text-xs">

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ServiceItem, CurrentView } from '../../types';
-import { Plus, Edit2, Trash2, Clock, Power, Star, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Clock, Power, CheckCircle2 } from 'lucide-react';
+import { ServiceImage } from '../ServiceImage';
+import { formatDuration } from '../../utils/formatDuration';
 
 interface ProviderServicesProps {
   services: ServiceItem[];
@@ -48,29 +50,20 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
             className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between"
           >
             <div>
-              <div className="h-44 relative overflow-hidden">
-                <img
-                  src={srv.imageUrl}
-                  alt={srv.title}
-                  className="w-full h-full object-cover"
-                />
+              <ServiceImage imageUrl={srv.imageUrl} title={srv.title} className="h-44">
                 <span className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-extrabold px-2 py-0.5 rounded">
                   {srv.modalityBadge}
                 </span>
                 <span className="absolute bottom-2.5 right-2.5 bg-white/95 text-blue-900 text-xs font-black px-2.5 py-1 rounded-xl shadow-xs">
                   ${srv.price.toLocaleString('es-CO')} COP
                 </span>
-              </div>
+              </ServiceImage>
 
               <div className="p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
                     {srv.category}
                   </span>
-                  <div className="flex items-center gap-1 text-amber-500 font-bold text-xs">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>{srv.rating}</span>
-                  </div>
                 </div>
 
                 <h3 className="text-sm font-extrabold text-[#0b1c30] font-display line-clamp-1">
@@ -84,7 +77,7 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{srv.durationMinutes} min</span>
+                    <span>{formatDuration(srv.durationMinutes)}</span>
                   </div>
                   <span
                     className={`font-semibold flex items-center gap-1 ${
@@ -128,7 +121,7 @@ export const ProviderServices: React.FC<ProviderServicesProps> = ({
                   }
                 }}
                 className="px-3 py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl border border-slate-200 transition-colors"
-                title="Eliminar servicio (HU06)"
+                title="Eliminar servicio"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

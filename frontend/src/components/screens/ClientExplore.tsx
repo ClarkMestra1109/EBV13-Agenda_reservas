@@ -3,7 +3,6 @@ import { ServiceItem, CurrentView } from '../../types';
 import {
   Search,
   SlidersHorizontal,
-  Star,
   Clock,
   ShieldCheck,
   Sparkles,
@@ -11,6 +10,8 @@ import {
   Filter,
   Check
 } from 'lucide-react';
+import { ServiceImage } from '../ServiceImage';
+import { formatDuration } from '../../utils/formatDuration';
 
 interface ClientExploreProps {
   services: ServiceItem[];
@@ -27,7 +28,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedModality, setSelectedModality] = useState<string>('all');
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('rating');
+  const [sortBy, setSortBy] = useState<string>('name');
 
   const categories = [
     { id: 'all', label: 'Todos los servicios' },
@@ -59,7 +60,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'name') return a.title.localeCompare(b.title, 'es');
       if (sortBy === 'price-low') return a.price - b.price;
       if (sortBy === 'price-high') return b.price - a.price;
       return 0;
@@ -68,8 +69,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
   return (
     <div className="space-y-6">
       {/* Hero Banner (Image 20) */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+      <div className="bg-[#223f99] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-semibold">
@@ -86,13 +86,10 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
 
           <div className="flex items-center gap-4 shrink-0 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 text-center">
             <div>
-              <div className="text-2xl font-extrabold font-display">140+</div>
-              <div className="text-[11px] text-blue-200">Servicios activos</div>
-            </div>
-            <div className="w-px h-8 bg-white/20"></div>
-            <div>
-              <div className="text-2xl font-extrabold font-display">100%</div>
-              <div className="text-[11px] text-blue-200">Reserva segura</div>
+              <div className="text-2xl font-extrabold font-display">{services.length}</div>
+              <div className="text-[11px] text-blue-200">
+                {services.length === 1 ? 'Servicio disponible' : 'Servicios disponibles'}
+              </div>
             </div>
           </div>
         </div>
@@ -120,7 +117,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
               onChange={(e) => setSelectedModality(e.target.value)}
               className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
             >
-              <option value="all">Modalidad no registrada en backend</option>
+              <option value="all">Todas las modalidades</option>
             </select>
           </div>
 
@@ -145,7 +142,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
             >
-              <option value="rating">Mejor calificados</option>
+              <option value="name">Nombre (A-Z)</option>
               <option value="price-low">Menor precio</option>
               <option value="price-high">Mayor precio</option>
             </select>
@@ -179,12 +176,12 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
           >
             <div>
               {/* Image Banner */}
-              <div className="h-48 relative overflow-hidden">
-                <img
-                  src={service.imageUrl}
-                  alt={service.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+              <ServiceImage
+                imageUrl={service.imageUrl}
+                title={service.title}
+                className="h-48"
+                imageClassName="group-hover:scale-105 transition-transform duration-300"
+              >
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
                   <span className="bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-extrabold px-2 py-0.5 rounded">
                     {service.modalityBadge}
@@ -193,7 +190,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
                 <span className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm text-blue-900 text-xs font-black px-2.5 py-1 rounded-xl shadow-xs">
                   ${service.price.toLocaleString('es-CO')} COP
                 </span>
-              </div>
+              </ServiceImage>
 
               {/* Content */}
               <div className="p-5 space-y-3">
@@ -201,11 +198,6 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
                   <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
                     {service.category}
                   </span>
-                  <div className="flex items-center gap-1 text-amber-500 font-bold text-xs">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span className="text-slate-800">{service.rating}</span>
-                    <span className="text-slate-400 font-normal">({service.reviewsCount})</span>
-                  </div>
                 </div>
 
                 <h3 className="text-base font-extrabold text-[#0b1c30] font-display line-clamp-1 group-hover:text-blue-700 transition-colors">
@@ -219,7 +211,7 @@ export const ClientExplore: React.FC<ClientExploreProps> = ({
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{service.durationMinutes} minutos</span>
+                    <span>{formatDuration(service.durationMinutes)}</span>
                   </div>
                   <span className="font-medium text-slate-700 truncate max-w-[140px]">
                     {service.providerStudio}

@@ -9,12 +9,21 @@ import {
   CheckCircle2,
   ShieldCheck,
   ChevronLeft,
-  Star,
   Check,
-  Info,
-  Sparkles,
-  ArrowRight
+  ArrowRight,
+  Globe2
 } from 'lucide-react';
+import { ServiceImage } from '../ServiceImage';
+import { formatDuration } from '../../utils/formatDuration';
+
+const getSafeWebsiteUrl = (website: string) => {
+  try {
+    const url = new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 interface ClientBookingProps {
   service: ServiceItem;
@@ -195,7 +204,8 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
         durationMinutes: service.durationMinutes,
         price: service.price,
         status: 'confirmed',
-        modality: 'Presencial',
+        modality: service.serviceMode || 'Presencial',
+        serviceLocation: service.serviceLocation || '',
         notes: clientNotes || undefined,
         backendInicio: response.inicio,
         backendFin: response.fin,
@@ -229,27 +239,21 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
 
       {/* Service Preview Banner (Image 22) */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-        <div className="md:col-span-4 h-48 rounded-2xl overflow-hidden relative shadow-xs">
-          <img
-            src={service.imageUrl}
-            alt={service.title}
-            className="w-full h-full object-cover"
-          />
+        <ServiceImage
+          imageUrl={service.imageUrl}
+          title={service.title}
+          className="md:col-span-4 h-48 rounded-2xl shadow-xs"
+        >
           <span className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-sm text-white text-[10px] font-extrabold px-2.5 py-1 rounded-md">
             {service.modalityBadge}
           </span>
-        </div>
+        </ServiceImage>
 
         <div className="md:col-span-8 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
               {service.providerStudio}
             </span>
-            <div className="flex items-center gap-1 text-amber-500 font-bold text-xs">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-slate-800">{service.rating}</span>
-              <span className="text-slate-400 font-normal">({service.reviewsCount} reseñas)</span>
-            </div>
           </div>
 
           <h1 className="text-2xl font-extrabold text-[#0b1c30] tracking-tight font-display">
@@ -263,11 +267,15 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
           <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
             <div className="flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-blue-600" />
-              <span>{service.durationMinutes} minutos de duración</span>
+              <span>{formatDuration(service.durationMinutes)} de duración</span>
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-blue-600" />
-              <span>Sede Chicó Norte, Cra 15 # 93-40, Bogotá</span>
+              <span>
+                {service.serviceMode === 'Virtual'
+                  ? 'Servicio virtual'
+                  : service.serviceLocation || 'Ubicación no registrada'}
+              </span>
             </div>
             <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
               <ShieldCheck className="w-4 h-4" />
@@ -410,17 +418,43 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
           </div>
 
           {/* Provider Bio Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-blue-700 text-white flex items-center justify-center text-lg font-extrabold shrink-0">
-              {service.providerStudio ? service.providerStudio.charAt(0).toUpperCase() : '?'}
+              {(service.providerBusinessName || service.providerStudio)
+                ? (service.providerBusinessName || service.providerStudio).charAt(0).toUpperCase()
+                : '?'}
             </div>
-            <div className="space-y-0.5">
+            <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-slate-900 font-display">
-                  {service.providerStudio || 'Proveedor del servicio'}
+                  {service.providerBusinessName || service.providerStudio || 'Proveedor del servicio'}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">{service.description}</p>
+              {service.providerBusinessSector && (
+                <p className="text-[11px] font-semibold text-blue-700">
+                  {service.providerBusinessSector}
+                </p>
+              )}
+              <p className="text-xs text-slate-500">
+                {service.providerBusinessDescription || service.description}
+              </p>
+              {service.providerBusinessWebsite && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Globe2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  {getSafeWebsiteUrl(service.providerBusinessWebsite) ? (
+                    <a
+                      href={getSafeWebsiteUrl(service.providerBusinessWebsite)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-blue-700 hover:underline"
+                    >
+                      {service.providerBusinessWebsite}
+                    </a>
+                  ) : (
+                    <span className="truncate text-slate-500">{service.providerBusinessWebsite}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -458,8 +492,12 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                 <div className="text-[11px] text-slate-600">
-                  <span className="font-bold text-slate-800 block">Sede Presencial</span>
-                  Cra 15 # 93-40, Chicó Norte, Bogotá
+                  <span className="font-bold text-slate-800 block">
+                    {service.serviceMode || 'Presencial'}
+                  </span>
+                  {service.serviceMode === 'Virtual'
+                    ? 'Servicio virtual'
+                    : service.serviceLocation || 'Ubicación no registrada'}
                 </div>
               </div>
             </div>
@@ -471,10 +509,6 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
                 <span className="font-bold text-slate-800">
                   ${service.price.toLocaleString('es-CO')} COP
                 </span>
-              </div>
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Comisión de plataforma</span>
-                <span className="font-bold text-emerald-600">Bonificado ($0)</span>
               </div>
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-sm font-extrabold text-slate-900">
                 <span>Total a pagar</span>

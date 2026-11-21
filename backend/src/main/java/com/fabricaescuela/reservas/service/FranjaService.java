@@ -36,10 +36,13 @@ public class FranjaService {
 
     private final FranjaRepository franjas;
     private final ServicioRepository servicios;
+    private final CapacidadRecursos capacidadRecursos;
 
-    public FranjaService(FranjaRepository franjas, ServicioRepository servicios) {
+    public FranjaService(FranjaRepository franjas, ServicioRepository servicios,
+                         CapacidadRecursos capacidadRecursos) {
         this.franjas = franjas;
         this.servicios = servicios;
+        this.capacidadRecursos = capacidadRecursos;
     }
 
     /** HU10: el proveedor publica una franja futura y válida para uno de sus servicios. */
@@ -193,8 +196,19 @@ public class FranjaService {
         if (servicio.getEstado() != EstadoServicio.ACTIVO) {
             return List.of();
         }
+        // HU09: si los recursos del servicio están llenos en un horario, ese horario no se
+        // ofrece, y los cupos mostrados nunca superan lo que los recursos permiten.
         return franjas.disponibles(servicioId, EstadoFranja.PUBLICADA, Instant.now()).stream()
-                .map(FranjaResponse::desde)
+                .map(f -> {
+                    FranjaResponse base = FranjaResponse.desde(f);
+                    Integer libresRecursos = capacidadRecursos.cuposLibres(servicioId, f.getInicio(), f.getFin());
+                    if (libresRecursos == null || libresRecursos >= base.cuposDisponibles()) {
+                        return base;
+                    }
+                    return new FranjaResponse(base.id(), base.servicioId(), base.inicio(), base.fin(),
+                            base.cupoTotal(), base.cuposOcupados(), libresRecursos, base.estado());
+                })
+                .filter(f -> f.cuposDisponibles() > 0)
                 .toList();
     }
 

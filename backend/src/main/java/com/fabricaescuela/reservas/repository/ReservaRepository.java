@@ -80,6 +80,32 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
                                  @Param("hasta") Instant hasta,
                                  @Param("reservaExcluida") Long reservaExcluida);
 
+    /**
+     * HU09: reservas en el estado indicado cuyo horario se cruza con [desde, hasta) y que
+     * pertenecen a cualquier servicio que use el recurso. {@code reservaExcluida} permite
+     * ignorar la reserva que se está reprogramando (-1 cuando no aplica).
+     */
+    @Query("select r from Reserva r join fetch r.franja f where r.estado = :estado "
+            + "and f.inicio < :hasta and f.fin > :desde and r.id <> :reservaExcluida "
+            + "and f.servicio.id in (select sr.servicio.id from ServicioRecurso sr where sr.recurso.id = :recursoId)")
+    List<Reserva> queUsanRecursoEnRango(@Param("recursoId") Long recursoId,
+                                        @Param("estado") EstadoReserva estado,
+                                        @Param("desde") Instant desde,
+                                        @Param("hasta") Instant hasta,
+                                        @Param("reservaExcluida") Long reservaExcluida);
+
+    /**
+     * HU20-HU23: reservas (en cualquier estado) de los servicios del proveedor cuya cita
+     * empieza dentro de [desde, hasta), con filtro opcional por servicio.
+     */
+    @Query("select r from Reserva r join fetch r.franja f join fetch f.servicio s join fetch r.cliente "
+            + "where s.proveedor.id = :proveedorId and f.inicio >= :desde and f.inicio < :hasta "
+            + "and (:servicioId is null or s.id = :servicioId) order by f.inicio, r.id")
+    List<Reserva> delProveedorEnPeriodo(@Param("proveedorId") Long proveedorId,
+                                        @Param("desde") Instant desde,
+                                        @Param("hasta") Instant hasta,
+                                        @Param("servicioId") Long servicioId);
+
     /** HU19: reservas confirmadas cuya franja empieza dentro de la ventana de recordatorio, sin recordatorio aún. */
     @Query("select r from Reserva r where r.estado = :estado "
             + "and r.franja.inicio between :ahora and :limite "

@@ -261,7 +261,6 @@ export const ClientReservations: React.FC<ClientReservationsProps> = ({
                   <th className="py-3 px-4">Servicio & Proveedor</th>
                   <th className="py-3 px-4">Fecha</th>
                   <th className="py-3 px-4">Valor</th>
-                  <th className="py-3 px-4 text-right">Comprobante</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -273,15 +272,6 @@ export const ClientReservations: React.FC<ClientReservationsProps> = ({
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">{item.date}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-800">{item.price}</td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => alert(`Descargando comprobante fiscal ${item.id}.pdf`)}
-                        className="text-xs font-bold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>PDF</span>
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>

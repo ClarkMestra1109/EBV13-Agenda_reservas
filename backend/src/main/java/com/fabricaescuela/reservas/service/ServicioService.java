@@ -11,6 +11,7 @@ import com.fabricaescuela.reservas.dto.ServicioResponse;
 import com.fabricaescuela.reservas.error.ApiException;
 import com.fabricaescuela.reservas.repository.FranjaRepository;
 import com.fabricaescuela.reservas.repository.ReservaRepository;
+import com.fabricaescuela.reservas.repository.ServicioRecursoRepository;
 import com.fabricaescuela.reservas.repository.ServicioRepository;
 import com.fabricaescuela.reservas.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
@@ -26,13 +27,16 @@ public class ServicioService {
     private final UsuarioRepository usuarios;
     private final ReservaRepository reservas;
     private final FranjaRepository franjas;
+    private final ServicioRecursoRepository vinculosRecurso;
 
     public ServicioService(ServicioRepository servicios, UsuarioRepository usuarios,
-                           ReservaRepository reservas, FranjaRepository franjas) {
+                           ReservaRepository reservas, FranjaRepository franjas,
+                           ServicioRecursoRepository vinculosRecurso) {
         this.servicios = servicios;
         this.usuarios = usuarios;
         this.reservas = reservas;
         this.franjas = franjas;
+        this.vinculosRecurso = vinculosRecurso;
     }
 
     /** HU05: el proveedor autenticado crea un servicio; queda ACTIVO para configurarle su agenda. */
@@ -103,6 +107,8 @@ public class ServicioService {
         // Sus horarios futuros dejan de ofrecerse: no debe quedar nada reservable de un
         // servicio eliminado. (No tienen reservas vigentes: se validó arriba.)
         franjas.retirarFuturasDeServicio(servicioId, EstadoFranja.PUBLICADA, EstadoFranja.RETIRADA, Instant.now());
+        // Un servicio eliminado deja de usar sus recursos (HU08).
+        vinculosRecurso.eliminarDelServicio(servicioId);
     }
 
     private void validarNombreUnico(Long proveedorId, String nombre, Long idExcluido) {

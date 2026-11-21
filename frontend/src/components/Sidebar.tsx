@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   CalendarCheck2,
+  BarChart3,
   Clock,
   Briefcase,
   Compass,
@@ -14,7 +15,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   PhoneCall,
-  UserCircle
+  UserCircle,
+  Boxes,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -112,6 +114,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               <button
+                id="nav-provider-resources"
+                onClick={() => onNavigate('provider-resources')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  currentView === 'provider-resources'
+                    ? 'bg-blue-700 text-white font-semibold shadow-sm shadow-blue-700/20'
+                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Boxes className="w-4 h-4" />
+                  <span>Recursos</span>
+                </div>
+              </button>
+
+              <button
                 id="nav-provider-availability"
                 onClick={() => onNavigate('provider-availability')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -165,6 +182,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-3">
                   <CalendarDays className="w-4 h-4" />
                   <span>Mi agenda</span>
+                </div>
+              </button>
+
+              <button
+                id="nav-provider-analytics"
+                onClick={() => onNavigate('provider-analytics')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  currentView === 'provider-analytics'
+                    ? 'bg-blue-700 text-white font-semibold shadow-sm shadow-blue-700/20'
+                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Reportes</span>
                 </div>
               </button>
             </>
@@ -252,7 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold tracking-wider text-blue-700 uppercase bg-blue-50 px-2 py-0.5 rounded-md">
-                PLAN PROFESIONAL
+                CUENTA DE PROVEEDOR
               </span>
               <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -263,7 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {userName}
             </p>
             <p className="text-[11px] text-slate-500">
-              Datos sincronizados con el backend
+              Tus datos están actualizados
             </p>
           </div>
         ) : (

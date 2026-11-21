@@ -51,4 +51,24 @@ public interface FranjaRepository extends JpaRepository<Franja, Long> {
                                  @Param("actual") EstadoFranja actual,
                                  @Param("nuevo") EstadoFranja nuevo,
                                  @Param("ahora") Instant ahora);
+
+    /** HU21: disponibilidad publicada por el proveedor que empieza dentro de [desde, hasta). */
+    @Query("select f from Franja f join fetch f.servicio s where s.proveedor.id = :proveedorId "
+            + "and f.estado = :estado and f.inicio >= :desde and f.inicio < :hasta "
+            + "and (:servicioId is null or s.id = :servicioId) order by f.inicio")
+    List<Franja> delProveedorEnPeriodo(@Param("proveedorId") Long proveedorId,
+                                       @Param("estado") EstadoFranja estado,
+                                       @Param("desde") Instant desde,
+                                       @Param("hasta") Instant hasta,
+                                       @Param("servicioId") Long servicioId);
+
+    /** HU09: horarios publicados de los servicios que usan un recurso, dentro de [desde, hasta). */
+    @Query("select f from Franja f join fetch f.servicio s where f.estado = :estado "
+            + "and f.inicio < :hasta and f.fin > :desde "
+            + "and s.id in (select sr.servicio.id from ServicioRecurso sr where sr.recurso.id = :recursoId) "
+            + "order by f.inicio")
+    List<Franja> deRecursoEnRango(@Param("recursoId") Long recursoId,
+                                  @Param("estado") EstadoFranja estado,
+                                  @Param("desde") Instant desde,
+                                  @Param("hasta") Instant hasta);
 }

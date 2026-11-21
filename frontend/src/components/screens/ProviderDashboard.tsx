@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatDuration } from '../../utils/formatDuration';
 import { Booking, ServiceItem, AvailabilitySlot, CurrentView } from '../../types';
 import {
   Plus,
@@ -60,12 +61,20 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
       : activeTab === 'pending'
       ? pendingBookings
       : confirmedBookings;
+  const displayedAvailableSlots = slots
+    .filter((slot) => !slot.isBooked && (!slot.inicio || new Date(slot.inicio).getTime() >= Date.now()))
+    .sort((a, b) => {
+      if (!a.inicio) return b.inicio ? 1 : 0;
+      if (!b.inicio) return -1;
+      return new Date(a.inicio).getTime() - new Date(b.inicio).getTime();
+    })
+    .slice(0, filteredBookings.length + 10);
 
 
   return (
     <div className="space-y-6">
       {/* Hero Welcome Banner (Image 4 & 10) */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
+      <div className="bg-[#223f99] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-blue-950/20">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
@@ -283,7 +292,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
 
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-800">{b.timeSlotFormatted}</div>
-                      <div className="text-[11px] text-slate-400">{b.durationMinutes} minutos</div>
+                      <div className="text-[11px] text-slate-400">{formatDuration(b.durationMinutes)}</div>
                     </td>
 
                     <td className="py-3 px-3">
@@ -367,7 +376,7 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
             </div>
 
             <div className="mt-3 space-y-2.5">
-              {slots.map((slot) => (
+              {displayedAvailableSlots.map((slot) => (
                 <div
                   key={slot.id}
                   className="p-2.5 rounded-xl border border-slate-100 bg-[#f8faff] flex items-center justify-between hover:border-blue-200 transition-all"
@@ -392,6 +401,9 @@ export const ProviderDashboard: React.FC<ProviderDashboardProps> = ({
                   </button>
                 </div>
               ))}
+              <p className="pt-1 text-center text-[10px] text-slate-400">
+                Mostrando {displayedAvailableSlots.length} de {slots.filter((slot) => !slot.isBooked).length} horarios disponibles
+              </p>
             </div>
 
             <button

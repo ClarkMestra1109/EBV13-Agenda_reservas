@@ -32,13 +32,16 @@ public class ReservaService {
     private final FranjaRepository franjas;
     private final UsuarioRepository usuarios;
     private final HistorialEstadoReservaRepository historial;
+    private final CapacidadRecursos capacidadRecursos;
 
     public ReservaService(ReservaRepository reservas, FranjaRepository franjas,
-                          UsuarioRepository usuarios, HistorialEstadoReservaRepository historial) {
+                          UsuarioRepository usuarios, HistorialEstadoReservaRepository historial,
+                          CapacidadRecursos capacidadRecursos) {
         this.reservas = reservas;
         this.franjas = franjas;
         this.usuarios = usuarios;
         this.historial = historial;
+        this.capacidadRecursos = capacidadRecursos;
     }
 
     /**
@@ -67,6 +70,8 @@ public class ReservaService {
                 franja.getInicio(), franja.getFin(), -1L)) {
             throw ApiException.conflicto("Ya tiene otra reserva confirmada en ese mismo horario");
         }
+        // HU09: los recursos que usa el servicio deben tener capacidad libre en ese horario.
+        capacidadRecursos.verificarCupo(franja.getServicio().getId(), franja.getInicio(), franja.getFin(), null);
         Usuario cliente = usuarios.findById(clienteId)
                 .orElseThrow(() -> ApiException.noAutenticado("Debe iniciar sesión para realizar esta operación"));
 
@@ -181,6 +186,9 @@ public class ReservaService {
                 franjaNueva.getInicio(), franjaNueva.getFin(), reservaId)) {
             throw ApiException.conflicto("Ya tiene otra reserva confirmada en ese mismo horario");
         }
+        // HU09: la reserva que se mueve no cuenta contra sí misma.
+        capacidadRecursos.verificarCupo(franjaNueva.getServicio().getId(),
+                franjaNueva.getInicio(), franjaNueva.getFin(), reservaId);
 
         franjaAnterior.setCuposOcupados(Math.max(0, franjaAnterior.getCuposOcupados() - 1));
         franjaNueva.setCuposOcupados(franjaNueva.getCuposOcupados() + 1);

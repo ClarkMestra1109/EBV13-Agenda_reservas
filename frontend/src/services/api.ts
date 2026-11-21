@@ -27,6 +27,10 @@ export interface ApiService {
   duracionMin: number;
   precio: number;
   proveedorNombre: string;
+  nombreComercial?: string | null;
+  sectorActividad?: string | null;
+  descripcionComercial?: string | null;
+  sitioWeb?: string | null;
 }
 
 export interface ApiProviderService {
@@ -299,4 +303,121 @@ export async function updateProfile(data: { nombre: string; correo: string; tele
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+// ---------------------------------------------------------------- HU07-HU09 Recursos
+
+export type TipoRecurso = 'ESPACIO' | 'EQUIPO' | 'PERSONAL' | 'OTRO';
+
+export interface ApiRecurso {
+  id: number;
+  nombre: string;
+  tipo: TipoRecurso;
+  descripcion: string | null;
+  capacidad: number;
+  servicios: { id: number; nombre: string; estado: string }[];
+  /** Reservas confirmadas futuras que usan el recurso. */
+  reservasProximas: number;
+  /** Mayor número de esas reservas que coinciden al mismo tiempo. */
+  ocupacionMaxima: number;
+  /** Cupos que quedan en el momento más ocupado. */
+  cuposLibresEnPico: number;
+}
+
+export interface RecursoPayload {
+  nombre: string;
+  tipo: TipoRecurso;
+  descripcion: string;
+  capacidad: number;
+}
+
+export interface ApiDisponibilidadRecurso {
+  recursoId: number;
+  recurso: string;
+  capacidad: number;
+  fecha: string;
+  horarios: {
+    franjaId: number;
+    servicioId: number;
+    servicio: string;
+    inicio: string;
+    fin: string;
+    reservasSimultaneas: number;
+    cuposDisponibles: number;
+  }[];
+}
+
+export async function getRecursos() {
+  return request<ApiRecurso[]>('/recursos');
+}
+
+export async function createRecurso(data: RecursoPayload) {
+  return request<ApiRecurso>('/recursos', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateRecurso(id: number, data: RecursoPayload) {
+  return request<ApiRecurso>(`/recursos/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteRecurso(id: number) {
+  return request<void>(`/recursos/${id}`, { method: 'DELETE' });
+}
+
+export async function getDisponibilidadRecurso(id: number, fecha: string) {
+  return request<ApiDisponibilidadRecurso>(`/recursos/${id}/disponibilidad?fecha=${encodeURIComponent(fecha)}`);
+}
+
+export async function getRecursosDeServicio(servicioId: number) {
+  return request<ApiRecurso[]>(`/servicios/${servicioId}/recursos`);
+}
+
+export async function asociarRecurso(servicioId: number, recursoId: number) {
+  return request<ApiRecurso>(`/servicios/${servicioId}/recursos/${recursoId}`, { method: 'POST' });
+}
+
+export async function desasociarRecurso(servicioId: number, recursoId: number) {
+  return request<void>(`/servicios/${servicioId}/recursos/${recursoId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------- HU20-HU23 Informes
+
+export interface ApiInforme {
+  desde: string;
+  hasta: string;
+  servicioId: number | null;
+  servicio: string | null;
+  resumen: {
+    reservas: number;
+    canceladas: number;
+    cuposPublicados: number;
+    cuposReservados: number;
+    cuposDisponibles: number;
+    porcentajeOcupacion: number | null;
+    ingresosEstimados: number;
+  };
+  porServicio: {
+    servicioId: number;
+    servicio: string;
+    reservas: number;
+    canceladas: number;
+    cuposPublicados: number;
+    cuposReservados: number;
+    porcentajeOcupacion: number | null;
+  }[];
+  reservas: {
+    reservaId: number;
+    inicio: string;
+    fin: string;
+    servicioId: number;
+    servicio: string;
+    cliente: string;
+    estado: 'CONFIRMADA' | 'CANCELADA';
+    precio: number;
+  }[];
+}
+
+export async function getInforme(desde: string, hasta: string, servicioId?: number) {
+  const params = new URLSearchParams({ desde, hasta });
+  if (servicioId) params.set('servicioId', String(servicioId));
+  return request<ApiInforme>(`/informes?${params.toString()}`);
 }

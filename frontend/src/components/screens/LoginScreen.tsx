@@ -6,8 +6,13 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  CheckCircle2,
-  UserCheck
+  UserCheck,
+  Scissors,
+  Music2,
+  Dumbbell,
+  Camera,
+  BriefcaseBusiness,
+  Briefcase,
 } from 'lucide-react';
 import { validarContrasena, validarCorreo, validarNombrePersona } from '../../utils/validation';
 
@@ -100,82 +105,61 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl w-full mx-auto px-6 py-10 my-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+      <main className="max-w-7xl w-full mx-auto px-6 lg:px-10 py-8 my-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
         {/* Left Col: Hero Welcome */}
-        <div className="lg:col-span-7 space-y-6">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#0b1c30] tracking-tight leading-[1.15] font-display">
-            Bienvenido de vuelta a tu espacio en{' '}
-            <span className="text-blue-700">AgendaPro</span>.
-          </h1>
+        <div className="lg:col-span-7 rounded-3xl bg-[#223f99] p-8 sm:p-10 text-white shadow-xl shadow-blue-950/20 flex flex-col justify-between min-h-[500px] lg:min-h-[560px]">
+          <div className="space-y-5">
+            <span className="inline-flex rounded-full border border-blue-300/30 bg-blue-400/15 px-4 py-1.5 text-xs font-bold tracking-wide text-blue-100">
+              PLATAFORMA INTEGRAL • REGISTRO
+            </span>
 
-          <p className="text-slate-600 text-base leading-relaxed max-w-xl">
-            Accede con tu cuenta para gestionar tus servicios, revisar solicitudes pendientes
-            y organizar tu agenda de manera eficiente y centralizada.
-          </p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-[1.12] font-display">
+              Organiza tus servicios.
+              <br />
+              <span className="text-blue-300">Reserva tu tiempo.</span>
+            </h1>
 
-          {/* Quick Profile Switcher Preview Card */}
-          <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm max-w-lg">
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-              Selecciona el rol de tu cuenta
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleSelectRole('provider')}
-                className={`p-3 rounded-xl border text-left transition-all flex items-start gap-3 ${
-                  selectedRole === 'provider'
-                    ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/20'
-                    : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-extrabold shrink-0 border border-slate-200">
-                  P
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-slate-900 truncate">Proveedor</div>
-                  <div className="text-[11px] font-medium text-blue-700">Ofrece servicios</div>
-                  <span className="text-[10px] text-slate-500 mt-1 block">
-                    Publica servicios y horarios
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectRole('client')}
-                className={`p-3 rounded-xl border text-left transition-all flex items-start gap-3 ${
-                  selectedRole === 'client'
-                    ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/20'
-                    : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-                }`}
-              >
-                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-extrabold shrink-0 border border-slate-200">
-                  C
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-slate-900 truncate">Cliente</div>
-                  <div className="text-[11px] font-medium text-emerald-700">Reserva servicios</div>
-                  <span className="text-[10px] text-slate-500 mt-1 block">
-                    Explora y reserva citas
-                  </span>
-                </div>
-              </button>
-            </div>
+            <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed max-w-xl">
+              AgendaPro facilita la gestión integral de citas, disponibilidad y catálogo de
+              servicios para profesionales independientes y empresas en cualquier industria.
+            </p>
           </div>
 
-          {/* Flow Checkpoints */}
-          <div className="pt-2 space-y-2.5 max-w-lg">
-            <div className="flex items-center gap-2.5 text-xs text-slate-600">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Validación de credenciales y roles en tiempo real</span>
+          <div className="space-y-4">
+            <div>
+              <h2 className="mb-3 text-xs font-extrabold tracking-wide text-blue-100">
+                ADAPTABLE A MÚLTIPLES SECTORES:
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  <Scissors className="h-3.5 w-3.5 text-amber-300" /> Barbería &amp; Belleza
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  <Music2 className="h-3.5 w-3.5 text-fuchsia-300" /> Clases &amp; Educación
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  <Dumbbell className="h-3.5 w-3.5 text-blue-200" /> Entrenamiento Personal
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  <Camera className="h-3.5 w-3.5 text-cyan-200" /> Sesiones de Fotografía
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/15 px-3 py-1.5 text-xs font-bold text-white">
+                  <BriefcaseBusiness className="h-3.5 w-3.5 text-indigo-200" /> Soporte &amp; Consultoría
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-slate-600">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Detección automática de panel según el rol de tu cuenta</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-slate-600">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Sincronización instantánea de citas, cupos y reservas</span>
+
+            <div className="flex items-start gap-4 rounded-2xl border border-white/15 bg-white/10 p-4 sm:p-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-400/25 text-blue-100">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white">¿Te registras como Proveedor?</h3>
+                <p className="mt-1 text-xs leading-relaxed text-blue-100/85">
+                  Tendrás acceso inmediato a tu Dashboard, catálogo de servicios, control de
+                  disponibilidad con franjas y la agenda semanal sincronizada.
+                </p>
+              </div>
             </div>
           </div>
         </div>

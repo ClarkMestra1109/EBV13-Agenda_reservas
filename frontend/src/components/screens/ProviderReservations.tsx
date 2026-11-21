@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Booking, CurrentView } from '../../types';
+import { formatDuration } from '../../utils/formatDuration';
 import {
   Calendar,
   Clock,
@@ -224,7 +225,7 @@ export const ProviderReservations: React.FC<ProviderReservationsProps> = ({
 
                   <td className="py-3.5 px-4">
                     <div className="font-bold text-slate-800">{b.timeSlotFormatted}</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">{b.durationMinutes} minutos</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">{formatDuration(b.durationMinutes)}</div>
                   </td>
 
                   <td className="py-3.5 px-4">

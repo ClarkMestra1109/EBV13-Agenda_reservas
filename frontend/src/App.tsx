@@ -45,6 +45,8 @@ import { ProviderReservations } from './components/screens/ProviderReservations'
 import { ProviderAgenda } from './components/screens/ProviderAgenda';
 import { ProviderServices } from './components/screens/ProviderServices';
 import { ProviderAvailability } from './components/screens/ProviderAvailability';
+import { ProviderAnalytics } from './components/screens/ProviderAnalytics';
+import { ProviderResources } from './components/screens/ProviderResources';
 import { ClientDashboard } from './components/screens/ClientDashboard';
 import { ClientExplore } from './components/screens/ClientExplore';
 import { ClientBooking } from './components/screens/ClientBooking';
@@ -56,6 +58,14 @@ import { RescheduleBookingModal } from './components/modals/RescheduleBookingMod
 import { NewServiceModal, ServicioFormData } from './components/modals/NewServiceModal';
 import { NewSlotModal, NuevaFranjaRecurrentePayload } from './components/modals/NewSlotModal';
 import { SharePublicLinkModal } from './components/modals/SharePublicLinkModal';
+import {
+  deleteServiceImage,
+  deleteServiceMetadata,
+  getServiceImage,
+  getServiceMetadata,
+  saveServiceImage,
+  saveServiceMetadata,
+} from './services/serviceImages';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const DIAS_JAVA = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -91,9 +101,30 @@ const formatCalendarDay = (iso: string) =>
   new Intl.DateTimeFormat('es-CO', {
     weekday: 'short',
     day: '2-digit',
+    timeZone: 'America/Bogota',
   })
     .format(new Date(iso))
     .replace('.', '');
+
+const formatAgendaTime = (iso: string) =>
+  new Intl.DateTimeFormat('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/Bogota',
+  }).format(new Date(iso));
+
+const getAgendaHour = (iso: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23',
+    timeZone: 'America/Bogota',
+  }).formatToParts(new Date(iso));
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+  return hour + minute / 60;
+};
 
 const getDayLabel = (iso: string): AvailabilitySlot['dayLabel'] => {
   const date = new Date(iso);
@@ -119,13 +150,16 @@ const mapCatalogService = (service: ApiService): ServiceItem => ({
   categorySlug: 'general',
   providerName: service.proveedorNombre,
   providerStudio: service.proveedorNombre,
+  providerBusinessName: service.nombreComercial || undefined,
+  providerBusinessSector: service.sectorActividad || undefined,
+  providerBusinessDescription: service.descripcionComercial || undefined,
+  providerBusinessWebsite: service.sitioWeb || undefined,
   modalityBadge: 'Presencial',
+  serviceMode: 'Presencial',
+  serviceLocation: '',
   price: Number(service.precio),
   durationMinutes: service.duracionMin,
-  rating: 5,
-  reviewsCount: 0,
-  imageUrl:
-    'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=900&auto=format&fit=crop&q=80',
+  imageUrl: '',
   description: service.descripcion,
   isActive: true,
   backendId: service.id,
@@ -140,12 +174,11 @@ const mapProviderService = (service: ApiProviderService): ServiceItem => ({
   providerName: '',
   providerStudio: '',
   modalityBadge: 'Presencial',
+  serviceMode: 'Presencial',
+  serviceLocation: '',
   price: Number(service.precio),
   durationMinutes: service.duracionMin,
-  rating: 5,
-  reviewsCount: 0,
-  imageUrl:
-    'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=900&auto=format&fit=crop&q=80',
+  imageUrl: '',
   description: service.descripcion,
   isActive: service.estado === 'ACTIVO',
   backendId: service.id,
@@ -205,7 +238,8 @@ const mapBooking = (
       : 0,
     price: service?.price || 0,
     status: booking.estado === 'CANCELADA' ? 'cancelled' : 'confirmed',
-    modality: 'Presencial',
+    modality: service?.serviceMode || 'Presencial',
+    serviceLocation: service?.serviceLocation || '',
     backendInicio: booking.inicio,
     backendFin: booking.fin,
     franjaId: booking.franjaId,
@@ -221,15 +255,19 @@ const buildCalendarEvents = (
     .map((booking) => {
       const startDate = new Date(booking.backendInicio!);
       const endDate = new Date(booking.backendFin!);
-      const startHours = startDate.getHours() + startDate.getMinutes() / 60;
+      const startHours = getAgendaHour(booking.backendInicio!);
       const durationHours = Math.max(0.25, (endDate.getTime() - startDate.getTime()) / 3600000);
 
       return {
         id: `booking-${booking.id}`,
         title: booking.serviceTitle,
         client: booking.clientName || 'Cliente',
-        timeRange: `${formatTime(booking.backendInicio!)} - ${formatTime(booking.backendFin!)}`,
+        timeRange: `${formatAgendaTime(booking.backendInicio!)} - ${formatAgendaTime(booking.backendFin!)}`,
         day: formatCalendarDay(booking.backendInicio!),
+        bookingId: booking.id,
+        serviceId: booking.serviceId,
+        startAt: booking.backendInicio!,
+        endAt: booking.backendFin!,
         startHour: startHours,
         durationHours,
         status: 'confirmed',
@@ -247,11 +285,15 @@ const buildCalendarEvents = (
 
       return {
         id: `slot-${slot.id}`,
-        title: 'Cupo libre publicado',
+        title: slot.serviceTag || 'Horario disponible',
         client: `${slot.cuposDisponibles || 1} cupo${slot.cuposDisponibles === 1 ? '' : 's'} disponible${slot.cuposDisponibles === 1 ? '' : 's'}`,
-        timeRange: `${formatTime(slot.inicio!)} - ${formatTime(slot.fin!)}`,
+        timeRange: `${formatAgendaTime(slot.inicio!)} - ${formatAgendaTime(slot.fin!)}`,
         day: formatCalendarDay(slot.inicio!),
-        startHour: startDate.getHours() + startDate.getMinutes() / 60,
+        slotId: slot.id,
+        serviceId: slot.serviceId,
+        startAt: slot.inicio!,
+        endAt: slot.fin!,
+        startHour: getAgendaHour(slot.inicio!),
         durationHours: Math.max(0.25, (endDate.getTime() - startDate.getTime()) / 3600000),
         status: 'available',
         color: 'bg-blue-50 border-blue-400 text-blue-800',
@@ -300,6 +342,7 @@ export function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [bookingsReady, setBookingsReady] = useState(false);
 
   const [toastType, setToastType] = useState<'ok' | 'error'>('ok');
   const toastTimer = useRef<number | undefined>(undefined);
@@ -331,7 +374,28 @@ export function App() {
           (service) => service.estado !== 'ELIMINADO'
         );
         const providerServices = activeProviderServicesApi.map(mapProviderService);
-        const allProviderServices = providerServicesApi.map(mapProviderService);
+        try {
+          const storedData = await Promise.all(
+            activeProviderServicesApi.map(async (service) => ({
+              imageUrl: await getServiceImage(service.id),
+              metadata: await getServiceMetadata(service.id),
+            }))
+          );
+          providerServices.forEach((service, index) => {
+            const data = storedData[index];
+            service.imageUrl = data.imageUrl || '';
+            service.serviceMode = data.metadata?.mode || 'Presencial';
+            service.serviceLocation = data.metadata?.location || '';
+            service.modalityBadge = service.serviceMode;
+          });
+        } catch (err) {
+          showToast(
+            `No fue posible cargar fotos y configuración local de servicios: ${
+              err instanceof Error ? err.message : 'error de almacenamiento'
+            }`,
+            'error'
+          );
+        }
         setServices(providerServices);
 
         const allSlots = (
@@ -340,6 +404,7 @@ export function App() {
           )
         )
           .flat()
+          .filter((slot) => slot.estado === 'PUBLICADA')
           .map((slot) =>
             mapSlot(
               slot,
@@ -350,15 +415,39 @@ export function App() {
         setSlots(allSlots);
 
         const agenda = await getAgenda();
-        setBookings(agenda.map((item) => mapBooking(item, allProviderServices, loggedUser)));
+        setBookings(agenda.map((item) => mapBooking(item, providerServices, loggedUser)));
+        setBookingsReady(true);
       } else {
         const catalog = await getCatalogServices();
         const catalogServices = catalog.map(mapCatalogService);
+        try {
+          const storedData = await Promise.all(
+            catalog.map(async (service) => ({
+              imageUrl: await getServiceImage(service.id),
+              metadata: await getServiceMetadata(service.id),
+            }))
+          );
+          catalogServices.forEach((service, index) => {
+            const data = storedData[index];
+            service.imageUrl = data.imageUrl || '';
+            service.serviceMode = data.metadata?.mode || 'Presencial';
+            service.serviceLocation = data.metadata?.location || '';
+            service.modalityBadge = service.serviceMode;
+          });
+        } catch (err) {
+          showToast(
+            `No fue posible cargar fotos y configuración local de servicios: ${
+              err instanceof Error ? err.message : 'error de almacenamiento'
+            }`,
+            'error'
+          );
+        }
         setServices(catalogServices);
         setSlots([]);
 
         const agenda = await getAgenda();
         setBookings(agenda.map((item) => mapBooking(item, catalogServices, loggedUser)));
+        setBookingsReady(true);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No fue posible cargar los datos';
@@ -377,6 +466,50 @@ export function App() {
       loadData(user);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user || role !== 'provider') return;
+
+    let active = true;
+    let refreshing = false;
+    let hasReportedError = false;
+
+    const refreshProviderBookings = async () => {
+      if (!active || refreshing || document.visibilityState === 'hidden') return;
+      refreshing = true;
+      try {
+        const agenda = await getAgenda();
+        if (active) {
+          setBookings(agenda.map((item) => mapBooking(item, services, user)));
+          setBookingsReady(true);
+          hasReportedError = false;
+        }
+      } catch (err) {
+        if (active && !hasReportedError) {
+          showToast(
+            `No fue posible actualizar las reservas: ${
+              err instanceof Error ? err.message : 'error de conexión'
+            }`,
+            'error'
+          );
+          hasReportedError = true;
+        }
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const intervalId = window.setInterval(refreshProviderBookings, 30_000);
+    window.addEventListener('focus', refreshProviderBookings);
+    document.addEventListener('visibilitychange', refreshProviderBookings);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshProviderBookings);
+      document.removeEventListener('visibilitychange', refreshProviderBookings);
+    };
+  }, [user, role, services]);
 
   const handleLogin = async (email: string, password: string) => {
     const response = await login(email, password);
@@ -441,6 +574,7 @@ export function App() {
     setServices([]);
     setSlots([]);
     setBookings([]);
+    setBookingsReady(false);
     setCurrentView('login');
     showToast('Sesión cerrada con éxito');
   };
@@ -450,13 +584,15 @@ export function App() {
   };
 
   const handleConfirmBooking = async (bookingId: string) => {
-    showToast('Las reservas se confirman automáticamente por el backend. No requieren aprobación manual.');
-    await loadData(user!);
+    showToast(
+      `La reserva #${bookingId} ya está confirmada: las reservas se confirman automáticamente y no requieren aprobación manual.`,
+            'ok'
+          );
   };
 
   const handleCancelBooking = (booking: Booking) => {
     if (role === 'provider') {
-      showToast('El backend actual permite cancelar reservas únicamente al cliente dueño.');
+      showToast('Solo el cliente dueño de la reserva puede cancelarla.', 'error');
       return;
     }
 
@@ -490,7 +626,7 @@ export function App() {
 
   const handleOpenReschedule = (booking: Booking) => {
     if (role === 'provider') {
-      showToast('El backend actual permite reprogramar reservas únicamente al cliente dueño.');
+      showToast('Solo el cliente dueño de la reserva puede reprogramarla.', 'error');
       return;
     }
     setBookingToReschedule(booking);
@@ -539,14 +675,14 @@ export function App() {
     );
   };
 
-  const handleFilterAgenda = async (fecha?: string, servicioId?: number): Promise<Booking[]> => {
-    const agenda = await getAgenda(fecha, servicioId);
-    return agenda.map((item) => mapBooking(item, services, user));
-  };
-
   const handleNewBookingCreated = async (newBooking: Booking) => {
+    setBookings((prev) =>
+      prev.some((booking) => booking.id === newBooking.id)
+        ? prev
+        : [newBooking, ...prev]
+    );
     setConfirmedBookingForModal(newBooking);
-    showToast('¡Cita agendada con éxito!');
+    showToast('¡Reserva registrada con éxito! Ya aparece en Mis reservas.');
     await loadData(user!);
   };
 
@@ -558,9 +694,36 @@ export function App() {
       precio: data.price,
     });
 
-    const mapped = mapProviderService(created);
+    let imageUrl = '';
+    const storageErrors: string[] = [];
+    if (data.imageDataUrl) {
+      try {
+        await saveServiceImage(created.id, data.imageDataUrl);
+        imageUrl = data.imageDataUrl;
+      } catch (err) {
+        storageErrors.push(err instanceof Error ? err.message : 'No fue posible guardar la foto.');
+      }
+    }
+    try {
+      await saveServiceMetadata(created.id, { mode: data.mode, location: data.location });
+    } catch (err) {
+      storageErrors.push(err instanceof Error ? err.message : 'No fue posible guardar modalidad y ubicación.');
+    }
+
+    const mapped = {
+      ...mapProviderService(created),
+      imageUrl,
+      serviceMode: data.mode,
+      modalityBadge: data.mode,
+      serviceLocation: data.location,
+    };
     setServices((prev) => [mapped, ...prev]);
-    showToast(`Servicio "${created.nombre}" publicado en tu catálogo.`);
+    showToast(
+      storageErrors.length
+        ? `Servicio publicado, pero hubo un problema guardando datos locales: ${storageErrors.join(' ')}`
+        : `Servicio "${created.nombre}" publicado en tu catálogo.`,
+      storageErrors.length ? 'error' : 'ok'
+    );
   };
 
   const handleUpdateServiceDetails = async (id: string, data: ServicioFormData) => {
@@ -574,17 +737,64 @@ export function App() {
       estado: existing?.isActive === false ? 'INACTIVO' : 'ACTIVO',
     });
 
-    const mapped = mapProviderService(updated);
+    let imageUrl = existing?.imageUrl || '';
+    const storageErrors: string[] = [];
+    try {
+      if (data.imageDataUrl === null) {
+        await deleteServiceImage(id);
+        imageUrl = '';
+      } else if (data.imageDataUrl) {
+        await saveServiceImage(id, data.imageDataUrl);
+        imageUrl = data.imageDataUrl;
+      }
+    } catch (err) {
+      storageErrors.push(err instanceof Error ? err.message : 'No fue posible actualizar la foto.');
+    }
+    try {
+      await saveServiceMetadata(id, { mode: data.mode, location: data.location });
+    } catch (err) {
+      storageErrors.push(err instanceof Error ? err.message : 'No fue posible actualizar modalidad y ubicación.');
+    }
+
+    const mapped = {
+      ...mapProviderService(updated),
+      imageUrl,
+      serviceMode: data.mode,
+      modalityBadge: data.mode,
+      serviceLocation: data.location,
+    };
     setServices((prev) => prev.map((s) => (s.id === id ? mapped : s)));
-    showToast(`Servicio "${updated.nombre}" actualizado.`);
+    showToast(
+      storageErrors.length
+        ? `Servicio actualizado, pero hubo un problema guardando datos locales: ${storageErrors.join(' ')}`
+        : `Servicio "${updated.nombre}" actualizado.`,
+      storageErrors.length ? 'error' : 'ok'
+    );
   };
 
   const handleDeleteService = async (id: string) => {
     try {
       await deleteService(Number(id));
+      let imageCleanupError: string | null = null;
+      try {
+        await deleteServiceImage(id);
+      } catch (err) {
+        imageCleanupError = err instanceof Error ? err.message : 'No fue posible quitar la foto guardada.';
+      }
+      try {
+        await deleteServiceMetadata(id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'No fue posible quitar los datos guardados.';
+        imageCleanupError = imageCleanupError ? `${imageCleanupError} ${message}` : message;
+      }
       setServices((prev) => prev.filter((s) => s.id !== id));
       setSlots((prev) => prev.filter((s) => s.serviceId !== id));
-      showToast('Servicio eliminado.');
+      showToast(
+        imageCleanupError
+          ? `Servicio eliminado, pero no se pudo limpiar su foto: ${imageCleanupError}`
+          : 'Servicio eliminado.',
+        imageCleanupError ? 'error' : 'ok'
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'No fue posible eliminar el servicio', 'error');
     }
@@ -703,12 +913,11 @@ export function App() {
             <Header
               role={role}
               userName={user.nombre}
-              currentView={currentView}
+              bookings={bookings}
+              bookingsReady={bookingsReady}
               onNavigate={setCurrentView}
-              onSwitchRole={handleSwitchRole}
               onOpenNewService={handleOpenCreateService}
               onOpenNewSlot={() => setIsNewSlotOpen(true)}
-              onOpenShareModal={() => setIsShareModalOpen(true)}
             />
 
             <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
@@ -740,12 +949,11 @@ export function App() {
               {currentView === 'provider-agenda' && (
                 <ProviderAgenda
                   events={calendarEvents}
-                  bookings={bookings}
                   services={services}
-                  onConfirmBooking={handleConfirmBooking}
-                  onCancelBooking={handleCancelBooking}
                   onOpenNewSlot={() => setIsNewSlotOpen(true)}
-                  onFilterAgenda={handleFilterAgenda}
+                  onDeleteSlot={handleDeleteSlot}
+                  onRefresh={() => loadData(user)}
+                  onNavigate={setCurrentView}
                 />
               )}
 
@@ -768,7 +976,11 @@ export function App() {
                         estado: servicio.isActive ? 'INACTIVO' : 'ACTIVO',
                       });
                       setServices((prev) =>
-                        prev.map((s) => (s.id === id ? mapProviderService(updated) : s))
+                      prev.map((s) =>
+                        s.id === id
+                          ? { ...mapProviderService(updated), imageUrl: s.imageUrl }
+                          : s
+                      )
                       );
                       showToast('Estado del servicio actualizado.');
                     } catch (err) {
@@ -784,6 +996,14 @@ export function App() {
                   onOpenNewSlot={() => setIsNewSlotOpen(true)}
                   onDeleteSlot={handleDeleteSlot}
                 />
+              )}
+
+              {currentView === 'provider-analytics' && role === 'provider' && (
+                <ProviderAnalytics services={services} onNotify={showToast} />
+              )}
+
+              {currentView === 'provider-resources' && role === 'provider' && (
+                <ProviderResources services={services} onNotify={showToast} />
               )}
 
               {currentView === 'client-dashboard' && (

@@ -9,7 +9,9 @@ export type CurrentView =
   | 'provider-reservations'
   | 'provider-agenda'
   | 'provider-services'
+  | 'provider-resources'
   | 'provider-availability'
+  | 'provider-analytics'
   | 'client-dashboard'
   | 'client-explore'
   | 'client-booking'
@@ -28,6 +30,7 @@ export interface Booking {
   serviceTitle: string;
   category: string;
   locationName: string;
+  serviceLocation?: string;
   date: string; // e.g. 'Hoy, 24 Oct' or '2024-10-27'
   time: string; // e.g. '10:00 AM'
   timeSlotFormatted: string; // e.g. 'Hoy, 10:00 AM'
@@ -53,13 +56,17 @@ export interface ServiceItem {
   modalityBadge: string;
   price: number;
   durationMinutes: number;
-  rating: number;
-  reviewsCount: number;
   imageUrl: string;
   description: string;
   isActive: boolean;
   backendId?: number;
   backendProviderName?: string;
+  providerBusinessName?: string;
+  providerBusinessSector?: string;
+  providerBusinessDescription?: string;
+  providerBusinessWebsite?: string;
+  serviceMode?: 'Presencial' | 'Virtual';
+  serviceLocation?: string;
 }
 
 export interface AvailabilitySlot {
@@ -79,10 +86,15 @@ export interface AvailabilitySlot {
 
 export interface CalendarEvent {
   id: string;
+  bookingId?: string;
+  slotId?: string;
+  serviceId?: string;
   title: string;
   client: string;
   timeRange: string;
   day: string;
+  startAt: string;
+  endAt: string;
   startHour: number; // e.g. 10.0 for 10:00 AM, 14.5 for 2:30 PM
   durationHours: number; // e.g. 0.75, 1, 2
   status: 'confirmed' | 'pending' | 'available' | 'blocked';

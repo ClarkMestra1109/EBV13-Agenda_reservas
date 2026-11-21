@@ -30,10 +30,11 @@ export const BookingConfirmationModal: React.FC<BookingConfirmationModalProps> =
             <CheckCircle2 className="w-8 h-8" />
           </div>
           <h3 className="text-xl font-extrabold text-[#0b1c30] tracking-tight font-display">
-            ¡Reserva Confirmada!
+            ¡Reserva registrada!
           </h3>
           <p className="text-xs text-slate-500">
-            Tu cita ha sido agendada y registrada en el sistema de AgendaPro.
+            Tu cita fue registrada en AgendaPro y ya aparece en Mis Reservas. El sistema actual
+            la confirma automáticamente; la aprobación manual del proveedor aún no está disponible.
           </p>
         </div>
 
