@@ -58,7 +58,7 @@ export const ClientBooking: React.FC<ClientBookingProps> = ({
           .filter((slot) => slot.cuposDisponibles > 0)
           .map((slot) => ({
             id: String(slot.id),
-            dayLabel: 'HOY' as AvailabilitySlot['dayLabel'],
+            dayLabel: '',
             fullDate: new Intl.DateTimeFormat('es-CO', {
               weekday: 'long',
               day: '2-digit',

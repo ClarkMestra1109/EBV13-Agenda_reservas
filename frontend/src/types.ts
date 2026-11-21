@@ -71,7 +71,8 @@ export interface ServiceItem {
 
 export interface AvailabilitySlot {
   id: string;
-  dayLabel: 'HOY' | 'MAÑ' | 'VIE' | 'SÁB' | 'DOM';
+  /** 'HOY', 'MAÑANA' o el día de la semana abreviado ('LUN', 'MAR'...). */
+  dayLabel: string;
   fullDate: string;
   timeRange: string;
   capacityText: string;

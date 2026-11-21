@@ -79,6 +79,7 @@ const formatDate = (iso: string) =>
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Bogota',
   }).format(new Date(iso));
 
 const formatShortDate = (iso: string) =>
@@ -126,21 +127,23 @@ const getAgendaHour = (iso: string) => {
   return hour + minute / 60;
 };
 
-const getDayLabel = (iso: string): AvailabilitySlot['dayLabel'] => {
-  const date = new Date(iso);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-
-  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-
-  if (sameDay(date, today)) return 'HOY';
-  if (sameDay(date, tomorrow)) return 'MAÑ';
-
-  const day = date.getDay();
-  if (day === 5) return 'VIE';
-  if (day === 6) return 'SÁB';
-  return 'DOM';
+// Etiqueta corta del día en hora de Colombia: HOY, MAÑANA o el día de la semana (LUN, MAR...).
+const getDayLabel = (iso: string): string => {
+  const dia = (fecha: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(fecha);
+  const objetivo = dia(new Date(iso));
+  const hoy = new Date();
+  if (objetivo === dia(hoy)) return 'HOY';
+  if (objetivo === dia(new Date(hoy.getTime() + 86_400_000))) return 'MAÑANA';
+  return new Intl.DateTimeFormat('es-CO', { weekday: 'short', timeZone: 'America/Bogota' })
+    .format(new Date(iso))
+    .replace('.', '')
+    .toUpperCase();
 };
 
 const mapCatalogService = (service: ApiService): ServiceItem => ({
@@ -849,7 +852,10 @@ export function App() {
   );
 
   const pendingBookingsCount = bookings.filter((b) => b.status === 'pending').length;
-  const availableSlotsCount = slots.filter((s) => !s.isBooked).length;
+  // Solo horarios futuros con cupo: los que ya pasaron no son reservables.
+  const availableSlotsCount = slots.filter(
+    (s) => !s.isBooked && (!s.inicio || Date.parse(s.inicio) > Date.now())
+  ).length;
   const activeClientBookingsCount = bookings.filter(
     (b) => b.status === 'confirmed' || b.status === 'pending'
   ).length;
@@ -995,6 +1001,7 @@ export function App() {
                   slots={slots}
                   onOpenNewSlot={() => setIsNewSlotOpen(true)}
                   onDeleteSlot={handleDeleteSlot}
+                  onRefresh={() => loadData(user)}
                 />
               )}
 
