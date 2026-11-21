@@ -232,6 +232,13 @@ class ReservasReglasTests extends PruebasBase {
                 .andExpect(status().isTooManyRequests());
     }
 
+    @Test
+    void salud_esPublicaYResponde() throws Exception {
+        consultar(get("/api/salud"), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ok"));
+    }
+
     private String ultimoTokenDe(String correo) {
         return tokens.findFirstByUsuario_CorreoOrderByIdDesc(correo)
                 .map(TokenRecuperacion::getToken)
