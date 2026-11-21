@@ -1,6 +1,7 @@
 package com.fabricaescuela.reservas.dto;
 
 import com.fabricaescuela.reservas.domain.EstadoServicio;
+import com.fabricaescuela.reservas.domain.Modalidad;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -33,6 +34,13 @@ public record ServicioRequest(
         BigDecimal precio,
 
         // Opcional: permite activar o desactivar el servicio al actualizarlo (HU06).
-        EstadoServicio estado
+        EstadoServicio estado,
+
+        // Opcional: si no se envía se conserva la modalidad actual (presencial por defecto).
+        Modalidad modalidad,
+
+        // Obligatoria si la modalidad es presencial; se ignora si es virtual.
+        @Size(max = 200, message = "La ubicación no puede superar 200 caracteres")
+        String ubicacion
 ) {
 }

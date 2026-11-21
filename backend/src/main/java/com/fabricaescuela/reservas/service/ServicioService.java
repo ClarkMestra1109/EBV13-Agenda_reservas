@@ -3,6 +3,7 @@ package com.fabricaescuela.reservas.service;
 import com.fabricaescuela.reservas.domain.EstadoFranja;
 import com.fabricaescuela.reservas.domain.EstadoReserva;
 import com.fabricaescuela.reservas.domain.EstadoServicio;
+import com.fabricaescuela.reservas.domain.Modalidad;
 import com.fabricaescuela.reservas.domain.Servicio;
 import com.fabricaescuela.reservas.domain.Usuario;
 import com.fabricaescuela.reservas.dto.CatalogoServicioResponse;
@@ -11,6 +12,7 @@ import com.fabricaescuela.reservas.dto.ServicioResponse;
 import com.fabricaescuela.reservas.error.ApiException;
 import com.fabricaescuela.reservas.repository.FranjaRepository;
 import com.fabricaescuela.reservas.repository.ReservaRepository;
+import com.fabricaescuela.reservas.repository.ServicioImagenRepository;
 import com.fabricaescuela.reservas.repository.ServicioRecursoRepository;
 import com.fabricaescuela.reservas.repository.ServicioRepository;
 import com.fabricaescuela.reservas.repository.UsuarioRepository;
@@ -28,10 +30,12 @@ public class ServicioService {
     private final ReservaRepository reservas;
     private final FranjaRepository franjas;
     private final ServicioRecursoRepository vinculosRecurso;
+    private final ServicioImagenRepository imagenes;
 
     public ServicioService(ServicioRepository servicios, UsuarioRepository usuarios,
                            ReservaRepository reservas, FranjaRepository franjas,
-                           ServicioRecursoRepository vinculosRecurso) {
+                           ServicioRecursoRepository vinculosRecurso, ServicioImagenRepository imagenes) {
+        this.imagenes = imagenes;
         this.servicios = servicios;
         this.usuarios = usuarios;
         this.reservas = reservas;
@@ -109,6 +113,9 @@ public class ServicioService {
         franjas.retirarFuturasDeServicio(servicioId, EstadoFranja.PUBLICADA, EstadoFranja.RETIRADA, Instant.now());
         // Un servicio eliminado deja de usar sus recursos (HU08).
         vinculosRecurso.eliminarDelServicio(servicioId);
+        // Su foto ya no se mostrará en ningún lado: se libera el espacio.
+        imagenes.deleteById(servicioId);
+        servicio.setImagenActualizada(null);
     }
 
     private void validarNombreUnico(Long proveedorId, String nombre, Long idExcluido) {
@@ -118,6 +125,20 @@ public class ServicioService {
     }
 
     private void aplicar(Servicio servicio, ServicioRequest req) {
+        // Modalidad y ubicación: si no se envían (p. ej. al solo activar/desactivar) se conservan.
+        if (req.modalidad() != null) {
+            if (req.modalidad() == Modalidad.PRESENCIAL) {
+                String ubicacion = req.ubicacion() == null ? "" : req.ubicacion().trim();
+                if (ubicacion.length() < 5) {
+                    throw ApiException.invalido("La ubicación es obligatoria para un servicio presencial "
+                            + "(mínimo 5 caracteres, por ejemplo la dirección del local)");
+                }
+                servicio.setUbicacion(ubicacion);
+            } else {
+                servicio.setUbicacion(null);
+            }
+            servicio.setModalidad(req.modalidad());
+        }
         servicio.setNombre(req.nombre().trim());
         servicio.setDescripcion(req.descripcion().trim());
         servicio.setDuracionMin(req.duracionMin());

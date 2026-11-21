@@ -32,6 +32,10 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.FORBIDDEN, mensaje);
     }
 
+    public static ApiException servicioNoDisponible(String mensaje) {
+        return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, mensaje);
+    }
+
     public static ApiException demasiadosIntentos(String mensaje) {
         return new ApiException(HttpStatus.TOO_MANY_REQUESTS, mensaje);
     }

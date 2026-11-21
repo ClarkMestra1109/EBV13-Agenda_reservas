@@ -1,6 +1,9 @@
 package com.fabricaescuela.reservas.web;
 
 import com.fabricaescuela.reservas.dto.ActualizarPerfilRequest;
+import com.fabricaescuela.reservas.dto.CambiarContrasenaRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
 import com.fabricaescuela.reservas.dto.UsuarioResponse;
 import com.fabricaescuela.reservas.security.UsuarioAutenticado;
 import com.fabricaescuela.reservas.service.UsuarioService;
@@ -32,5 +35,12 @@ public class UsuarioController {
     public UsuarioResponse actualizar(@AuthenticationPrincipal UsuarioAutenticado usuario,
                                       @Valid @RequestBody ActualizarPerfilRequest req) {
         return usuarios.actualizarPerfil(usuario.id(), req);
+    }
+
+    @PostMapping("/contrasena")
+    public ResponseEntity<Void> cambiarContrasena(@AuthenticationPrincipal UsuarioAutenticado usuario,
+                                                  @Valid @RequestBody CambiarContrasenaRequest req) {
+        usuarios.cambiarContrasena(usuario.id(), req);
+        return ResponseEntity.noContent().build();
     }
 }

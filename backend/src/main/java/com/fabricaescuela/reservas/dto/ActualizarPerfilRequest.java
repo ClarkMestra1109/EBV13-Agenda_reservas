@@ -22,6 +22,21 @@ public record ActualizarPerfilRequest(
         // Si se envía, solo dígitos (7 a 15) con un "+" inicial opcional para el indicativo.
         @Pattern(regexp = "^$|^\\+?[0-9]{7,15}$",
                 message = "El teléfono debe tener entre 7 y 15 dígitos, sin letras ni espacios")
-        String telefono
+        String telefono,
+
+        // Información comercial: opcional y solo se guarda para proveedores.
+        @Size(max = 100, message = "El nombre comercial no puede superar 100 caracteres")
+        String nombreComercial,
+
+        @Size(max = 80, message = "El sector o actividad no puede superar 80 caracteres")
+        String sectorActividad,
+
+        @Size(max = 500, message = "La descripción comercial no puede superar 500 caracteres")
+        String descripcionComercial,
+
+        @Size(max = 200, message = "El sitio web no puede superar 200 caracteres")
+        @Pattern(regexp = "^$|^https?://[^\\s/$.?#][^\\s]*\\.[^\\s]{2,}.*$",
+                message = "El sitio web debe ser un enlace válido que empiece por http:// o https://")
+        String sitioWeb
 ) {
 }

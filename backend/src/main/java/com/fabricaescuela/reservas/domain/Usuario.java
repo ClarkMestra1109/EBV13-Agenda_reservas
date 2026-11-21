@@ -39,6 +39,19 @@ public class Usuario {
     @Column(nullable = false, length = 20)
     private Rol rol;
 
+    // Información comercial (solo aplica a proveedores; se muestra a los clientes en el catálogo).
+    @Column(name = "nombre_comercial", length = 100)
+    private String nombreComercial;
+
+    @Column(name = "sector_actividad", length = 80)
+    private String sectorActividad;
+
+    @Column(name = "descripcion_comercial", length = 500)
+    private String descripcionComercial;
+
+    @Column(name = "sitio_web", length = 200)
+    private String sitioWeb;
+
     @Column(name = "fecha_registro", nullable = false, updatable = false)
     private Instant fechaRegistro;
 
@@ -59,4 +72,12 @@ public class Usuario {
     public Rol getRol() { return rol; }
     public void setRol(Rol rol) { this.rol = rol; }
     public Instant getFechaRegistro() { return fechaRegistro; }
+    public String getNombreComercial() { return nombreComercial; }
+    public void setNombreComercial(String nombreComercial) { this.nombreComercial = nombreComercial; }
+    public String getSectorActividad() { return sectorActividad; }
+    public void setSectorActividad(String sectorActividad) { this.sectorActividad = sectorActividad; }
+    public String getDescripcionComercial() { return descripcionComercial; }
+    public void setDescripcionComercial(String descripcionComercial) { this.descripcionComercial = descripcionComercial; }
+    public String getSitioWeb() { return sitioWeb; }
+    public void setSitioWeb(String sitioWeb) { this.sitioWeb = sitioWeb; }
 }

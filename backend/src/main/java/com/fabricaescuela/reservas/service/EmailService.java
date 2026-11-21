@@ -2,10 +2,9 @@ package com.fabricaescuela.reservas.service;
 
 /**
  * Envío de correos, desacoplado de la implementación concreta.
- * En este sprint no hay un proveedor SMTP configurado, así que {@link LogEmailService}
- * solo registra el envío en el log. Para producción basta con crear otra implementación
- * (por ejemplo con JavaMailSender y credenciales SMTP en variables de entorno) y marcarla
- * con @Primary o reemplazar el bean actual: el resto del código no cambia.
+ * {@link LogEmailService} solo registra el envío en el log (desarrollo y pruebas) y
+ * {@link BrevoEmailService} lo envía de verdad. Se elige con la variable EMAIL_PROVEEDOR,
+ * sin tocar el resto del código.
  */
 public interface EmailService {
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ApiUser } from '../../services/api';
+import { ApiUser, PerfilPayload } from '../../services/api';
 import {
   Building2,
   FileText,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   normalizarTelefono,
+  validarContrasena,
   validarCorreo,
   validarNombrePersona,
   validarTelefono,
@@ -22,32 +23,111 @@ import {
 
 interface ProfileScreenProps {
   user: ApiUser;
-  onSave: (data: { nombre: string; correo: string; telefono: string }) => Promise<void>;
+  onSave: (data: PerfilPayload) => Promise<void>;
+  onChangePassword: (data: {
+    contrasenaActual: string;
+    nuevaContrasena: string;
+    confirmarContrasena: string;
+  }) => Promise<void>;
 }
 
-const disabledInputClass =
-  'w-full rounded-xl border border-slate-200 bg-slate-100 p-2.5 text-xs text-slate-500 cursor-not-allowed';
+const inputClass =
+  'w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600';
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) => {
+/** Acepta "minegocio.co" y le agrega https:// para guardarlo como enlace válido. */
+const normalizarSitioWeb = (valor: string) => {
+  const limpio = valor.trim();
+  if (!limpio) return '';
+  return /^https?:\/\//i.test(limpio) ? limpio : `https://${limpio}`;
+};
+
+const validarSitioWeb = (valor: string): string | null => {
+  const url = normalizarSitioWeb(valor);
+  if (!url) return null;
+  if (url.length > 200 || !/^https?:\/\/[^\s/$.?#][^\s]*\.[^\s]{2,}/i.test(url)) {
+    return 'El sitio web debe ser un enlace válido, por ejemplo https://minegocio.co o instagram.com/minegocio.';
+  }
+  return null;
+};
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave, onChangePassword }) => {
   const [nombre, setNombre] = useState(user.nombre);
   const [correo, setCorreo] = useState(user.correo);
   const [telefono, setTelefono] = useState(user.telefono || '');
+  const [nombreComercial, setNombreComercial] = useState(user.nombreComercial || '');
+  const [sectorActividad, setSectorActividad] = useState(user.sectorActividad || '');
+  const [descripcionComercial, setDescripcionComercial] = useState(user.descripcionComercial || '');
+  const [sitioWeb, setSitioWeb] = useState(user.sitioWeb || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
+  // Cambio de contraseña: formulario aparte, con su propio botón y mensajes.
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const resetFromUser = () => {
     setNombre(user.nombre);
     setCorreo(user.correo);
     setTelefono(user.telefono || '');
+    setNombreComercial(user.nombreComercial || '');
+    setSectorActividad(user.sectorActividad || '');
+    setDescripcionComercial(user.descripcionComercial || '');
+    setSitioWeb(user.sitioWeb || '');
+  };
+
+  useEffect(() => {
+    resetFromUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const isProvider = user.rol === 'PROVEEDOR';
+
   const handleCancel = () => {
-    setNombre(user.nombre);
-    setCorreo(user.correo);
-    setTelefono(user.telefono || '');
+    resetFromUser();
     setError(null);
     setSuccess(false);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (!actual || !nueva || !confirmar) {
+      setPasswordError('Completa la contraseña actual, la nueva y su confirmación.');
+      return;
+    }
+    const problema = validarContrasena(nueva);
+    if (problema) {
+      setPasswordError(problema);
+      return;
+    }
+    if (nueva !== confirmar) {
+      setPasswordError('La confirmación no coincide con la nueva contraseña.');
+      return;
+    }
+    if (nueva === actual) {
+      setPasswordError('La nueva contraseña debe ser diferente de la actual.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await onChangePassword({ contrasenaActual: actual, nuevaContrasena: nueva, confirmarContrasena: confirmar });
+      setActual('');
+      setNueva('');
+      setConfirmar('');
+      setPasswordSuccess(true);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'No fue posible cambiar la contraseña.');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,7 +136,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
     setSuccess(false);
 
     const problema =
-      validarNombrePersona(nombre) || validarCorreo(correo) || validarTelefono(telefono);
+      validarNombrePersona(nombre) ||
+      validarCorreo(correo) ||
+      validarTelefono(telefono) ||
+      (isProvider ? validarSitioWeb(sitioWeb) : null);
     if (problema) {
       setError(problema);
       return;
@@ -68,6 +151,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
         nombre: nombre.trim(),
         correo: correo.trim(),
         telefono: normalizarTelefono(telefono),
+        ...(isProvider
+          ? {
+              nombreComercial: nombreComercial.trim(),
+              sectorActividad: sectorActividad.trim(),
+              descripcionComercial: descripcionComercial.trim(),
+              sitioWeb: normalizarSitioWeb(sitioWeb),
+            }
+          : {}),
       });
       setSuccess(true);
     } catch (err) {
@@ -76,8 +167,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
       setIsSubmitting(false);
     }
   };
-
-  const isProvider = user.rol === 'PROVEEDOR';
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -161,7 +250,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
                   Información comercial
                 </h2>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Personaliza cómo se presenta tu negocio a los clientes.
+                  Es opcional. Tus clientes lo ven al reservar tus servicios.
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -170,11 +259,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
                     <Building2 className="h-3.5 w-3.5 text-slate-400" />
                     Nombre comercial
                   </label>
-                  <input disabled placeholder="Nombre de tu negocio" className={disabledInputClass} />
+                  <input
+                    maxLength={100}
+                    value={nombreComercial}
+                    onChange={(event) => setNombreComercial(event.target.value)}
+                    placeholder="Nombre de tu negocio"
+                    className={inputClass}
+                  />
                 </div>
                 <div>
                   <label className="mb-1.5 block font-bold text-slate-700">Sector o actividad</label>
-                  <input disabled placeholder="Ej. Belleza, educación, consultoría" className={disabledInputClass} />
+                  <input
+                    maxLength={80}
+                    value={sectorActividad}
+                    onChange={(event) => setSectorActividad(event.target.value)}
+                    placeholder="Ej. Belleza, educación, consultoría"
+                    className={inputClass}
+                  />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 flex items-center gap-1.5 font-bold text-slate-700">
@@ -182,48 +283,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
                     Descripción comercial
                   </label>
                   <textarea
-                    disabled
                     rows={3}
+                    maxLength={500}
+                    value={descripcionComercial}
+                    onChange={(event) => setDescripcionComercial(event.target.value)}
                     placeholder="Describe brevemente los servicios de tu negocio"
-                    className={`${disabledInputClass} resize-none`}
+                    className={`${inputClass} resize-none`}
                   />
+                  <p className="mt-0.5 text-right text-[10px] text-slate-400">{descripcionComercial.length}/500</p>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="mb-1.5 flex items-center gap-1.5 font-bold text-slate-700">
                     <Globe2 className="h-3.5 w-3.5 text-slate-400" />
                     Sitio web o enlace comercial
                   </label>
-                  <input disabled type="url" placeholder="https://" className={disabledInputClass} />
+                  <input
+                    type="text"
+                    inputMode="url"
+                    maxLength={200}
+                    value={sitioWeb}
+                    onChange={(event) => setSitioWeb(event.target.value)}
+                    placeholder="https://minegocio.co"
+                    className={inputClass}
+                  />
                 </div>
               </div>
             </section>
           )}
-
-          <section className="space-y-4 border-t border-slate-100 pt-5">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
-                <LockKeyhole className="h-4 w-4 text-blue-700" />
-                Seguridad y contraseña
-              </h2>
-              <p className="mt-1 text-[11px] text-slate-500">
-                El cambio de contraseña estará disponible cuando el backend habilite esta función.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="mb-1.5 block font-bold text-slate-700">Contraseña actual</label>
-                <input disabled type="password" autoComplete="current-password" className={disabledInputClass} />
-              </div>
-              <div>
-                <label className="mb-1.5 block font-bold text-slate-700">Nueva contraseña</label>
-                <input disabled type="password" autoComplete="new-password" className={disabledInputClass} />
-              </div>
-              <div>
-                <label className="mb-1.5 block font-bold text-slate-700">Confirmar contraseña</label>
-                <input disabled type="password" autoComplete="new-password" className={disabledInputClass} />
-              </div>
-            </div>
-          </section>
 
           {error && (
             <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] text-red-700">
@@ -234,7 +320,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
           {success && !error && (
             <div role="status" className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-700">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Información personal actualizada con éxito.</span>
+              <span>Perfil actualizado con éxito.</span>
             </div>
           )}
 
@@ -259,10 +345,79 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onSave }) =>
           </div>
         </form>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
-          Por ahora se guardan en el backend el nombre, correo y teléfono. Los campos de contraseña
-          {isProvider ? ' e información comercial' : ''} estarán disponibles al integrar el soporte correspondiente.
-        </div>
+        <form onSubmit={handlePasswordSubmit} noValidate className="space-y-4 border-t border-slate-100 pt-5 text-xs">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+              <LockKeyhole className="h-4 w-4 text-blue-700" />
+              Seguridad y contraseña
+            </h2>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Para cambiarla necesitas tu contraseña actual. La nueva debe tener entre 8 y 72
+              caracteres, con letras y números.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="perfil-actual" className="mb-1.5 block font-bold text-slate-700">Contraseña actual</label>
+              <input
+                id="perfil-actual"
+                type="password"
+                autoComplete="current-password"
+                maxLength={200}
+                value={actual}
+                onChange={(event) => setActual(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="perfil-nueva" className="mb-1.5 block font-bold text-slate-700">Nueva contraseña</label>
+              <input
+                id="perfil-nueva"
+                type="password"
+                autoComplete="new-password"
+                maxLength={72}
+                value={nueva}
+                onChange={(event) => setNueva(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="perfil-confirmar" className="mb-1.5 block font-bold text-slate-700">Confirmar contraseña</label>
+              <input
+                id="perfil-confirmar"
+                type="password"
+                autoComplete="new-password"
+                maxLength={72}
+                value={confirmar}
+                onChange={(event) => setConfirmar(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {passwordError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] text-red-700">
+              {passwordError}
+            </div>
+          )}
+          {passwordSuccess && !passwordError && (
+            <div role="status" className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-700">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Contraseña actualizada con éxito.</span>
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={isChangingPassword}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 font-bold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-60"
+            >
+              <LockKeyhole className="h-4 w-4" />
+              <span>{isChangingPassword ? 'Cambiando...' : 'Cambiar contraseña'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

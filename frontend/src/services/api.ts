@@ -6,7 +6,13 @@ export interface ApiUser {
   correo: string;
   telefono?: string | null;
   rol: 'CLIENTE' | 'PROVEEDOR';
+  nombreComercial?: string | null;
+  sectorActividad?: string | null;
+  descripcionComercial?: string | null;
+  sitioWeb?: string | null;
 }
+
+export type ApiModalidad = 'PRESENCIAL' | 'VIRTUAL';
 
 export interface LoginResponse {
   token: string;
@@ -27,6 +33,10 @@ export interface ApiService {
   duracionMin: number;
   precio: number;
   proveedorNombre: string;
+  modalidad?: ApiModalidad;
+  ubicacion?: string | null;
+  /** Versión de la foto (null si no tiene); ver urlImagenServicio. */
+  imagenVersion?: number | null;
   nombreComercial?: string | null;
   sectorActividad?: string | null;
   descripcionComercial?: string | null;
@@ -41,6 +51,9 @@ export interface ApiProviderService {
   precio: number;
   estado: string;
   fechaCreacion: string;
+  modalidad?: ApiModalidad;
+  ubicacion?: string | null;
+  imagenVersion?: number | null;
 }
 
 export interface ApiSlot {
@@ -188,6 +201,8 @@ export async function createService(data: {
   descripcion: string;
   duracionMin: number;
   precio: number;
+  modalidad?: ApiModalidad;
+  ubicacion?: string;
 }) {
   return request<ApiProviderService>('/servicios', {
     method: 'POST',
@@ -203,6 +218,9 @@ export async function updateService(
     duracionMin: number;
     precio: number;
     estado?: 'ACTIVO' | 'INACTIVO';
+    /** Si no se envía, el servidor conserva la modalidad y la ubicación actuales. */
+    modalidad?: ApiModalidad;
+    ubicacion?: string;
   }
 ) {
   return request<ApiProviderService>(`/servicios/${id}`, {
@@ -298,11 +316,50 @@ export async function getProfile() {
   return request<ApiUser>('/usuarios/me');
 }
 
-export async function updateProfile(data: { nombre: string; correo: string; telefono: string }) {
+export interface PerfilPayload {
+  nombre: string;
+  correo: string;
+  telefono: string;
+  nombreComercial?: string;
+  sectorActividad?: string;
+  descripcionComercial?: string;
+  sitioWeb?: string;
+}
+
+export async function updateProfile(data: PerfilPayload) {
   return request<ApiUser>('/usuarios/me', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+export async function cambiarContrasena(data: {
+  contrasenaActual: string;
+  nuevaContrasena: string;
+  confirmarContrasena: string;
+}) {
+  return request<void>('/usuarios/me/contrasena', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ---------------------------------------------------------------- Foto de los servicios
+
+/** URL pública de la foto de un servicio, o '' si no tiene. La versión evita ver una foto vieja en caché. */
+export function urlImagenServicio(servicioId: number, version?: number | null): string {
+  return version ? `${API_URL}/imagenes/servicios/${servicioId}?v=${version}` : '';
+}
+
+export async function guardarImagenServicio(servicioId: number, dataUrl: string) {
+  return request<ApiProviderService>(`/servicios/${servicioId}/imagen`, {
+    method: 'PUT',
+    body: JSON.stringify({ imagen: dataUrl }),
+  });
+}
+
+export async function quitarImagenServicio(servicioId: number) {
+  return request<ApiProviderService>(`/servicios/${servicioId}/imagen`, { method: 'DELETE' });
 }
 
 // ---------------------------------------------------------------- Servidor

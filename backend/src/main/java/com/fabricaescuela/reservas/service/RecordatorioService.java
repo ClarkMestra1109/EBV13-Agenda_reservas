@@ -73,7 +73,8 @@ public class RecordatorioService {
             // La reserva permanece válida: solo registramos el error del envío.
             log.warn("No se pudo enviar el recordatorio de la reserva {}: {}", reserva.getId(), e.getMessage());
             recordatorio.setEnviado(false);
-            recordatorio.setError(e.getMessage());
+            String detalle = String.valueOf(e.getMessage());
+            recordatorio.setError(detalle.length() > 250 ? detalle.substring(0, 250) : detalle);
         }
         recordatorios.saveAndFlush(recordatorio);
     }

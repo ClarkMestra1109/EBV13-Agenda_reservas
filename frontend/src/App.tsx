@@ -30,6 +30,12 @@ import {
   getMyServiceSlots,
   getMyServices,
   despertarServidor,
+  cambiarContrasena,
+  guardarImagenServicio,
+  quitarImagenServicio,
+  urlImagenServicio,
+  PerfilPayload,
+  ApiModalidad,
   login,
   register,
   solicitarRecuperacion,
@@ -59,14 +65,6 @@ import { RescheduleBookingModal } from './components/modals/RescheduleBookingMod
 import { NewServiceModal, ServicioFormData } from './components/modals/NewServiceModal';
 import { NewSlotModal, NuevaFranjaRecurrentePayload } from './components/modals/NewSlotModal';
 import { SharePublicLinkModal } from './components/modals/SharePublicLinkModal';
-import {
-  deleteServiceImage,
-  deleteServiceMetadata,
-  getServiceImage,
-  getServiceMetadata,
-  saveServiceImage,
-  saveServiceMetadata,
-} from './services/serviceImages';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const DIAS_JAVA = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -147,6 +145,12 @@ const getDayLabel = (iso: string): string => {
     .toUpperCase();
 };
 
+const toServiceMode = (modalidad?: ApiModalidad): 'Presencial' | 'Virtual' =>
+  modalidad === 'VIRTUAL' ? 'Virtual' : 'Presencial';
+
+const toApiModalidad = (mode: 'Presencial' | 'Virtual'): ApiModalidad =>
+  mode === 'Virtual' ? 'VIRTUAL' : 'PRESENCIAL';
+
 const mapCatalogService = (service: ApiService): ServiceItem => ({
   id: String(service.id),
   title: service.nombre,
@@ -158,12 +162,12 @@ const mapCatalogService = (service: ApiService): ServiceItem => ({
   providerBusinessSector: service.sectorActividad || undefined,
   providerBusinessDescription: service.descripcionComercial || undefined,
   providerBusinessWebsite: service.sitioWeb || undefined,
-  modalityBadge: 'Presencial',
-  serviceMode: 'Presencial',
-  serviceLocation: '',
+  modalityBadge: toServiceMode(service.modalidad),
+  serviceMode: toServiceMode(service.modalidad),
+  serviceLocation: service.ubicacion || '',
   price: Number(service.precio),
   durationMinutes: service.duracionMin,
-  imageUrl: '',
+  imageUrl: urlImagenServicio(service.id, service.imagenVersion),
   description: service.descripcion,
   isActive: true,
   backendId: service.id,
@@ -177,12 +181,12 @@ const mapProviderService = (service: ApiProviderService): ServiceItem => ({
   categorySlug: 'general',
   providerName: '',
   providerStudio: '',
-  modalityBadge: 'Presencial',
-  serviceMode: 'Presencial',
-  serviceLocation: '',
+  modalityBadge: toServiceMode(service.modalidad),
+  serviceMode: toServiceMode(service.modalidad),
+  serviceLocation: service.ubicacion || '',
   price: Number(service.precio),
   durationMinutes: service.duracionMin,
-  imageUrl: '',
+  imageUrl: urlImagenServicio(service.id, service.imagenVersion),
   description: service.descripcion,
   isActive: service.estado === 'ACTIVO',
   backendId: service.id,
@@ -378,28 +382,6 @@ export function App() {
           (service) => service.estado !== 'ELIMINADO'
         );
         const providerServices = activeProviderServicesApi.map(mapProviderService);
-        try {
-          const storedData = await Promise.all(
-            activeProviderServicesApi.map(async (service) => ({
-              imageUrl: await getServiceImage(service.id),
-              metadata: await getServiceMetadata(service.id),
-            }))
-          );
-          providerServices.forEach((service, index) => {
-            const data = storedData[index];
-            service.imageUrl = data.imageUrl || '';
-            service.serviceMode = data.metadata?.mode || 'Presencial';
-            service.serviceLocation = data.metadata?.location || '';
-            service.modalityBadge = service.serviceMode;
-          });
-        } catch (err) {
-          showToast(
-            `No fue posible cargar fotos y configuración local de servicios: ${
-              err instanceof Error ? err.message : 'error de almacenamiento'
-            }`,
-            'error'
-          );
-        }
         setServices(providerServices);
 
         const allSlots = (
@@ -424,28 +406,6 @@ export function App() {
       } else {
         const catalog = await getCatalogServices();
         const catalogServices = catalog.map(mapCatalogService);
-        try {
-          const storedData = await Promise.all(
-            catalog.map(async (service) => ({
-              imageUrl: await getServiceImage(service.id),
-              metadata: await getServiceMetadata(service.id),
-            }))
-          );
-          catalogServices.forEach((service, index) => {
-            const data = storedData[index];
-            service.imageUrl = data.imageUrl || '';
-            service.serviceMode = data.metadata?.mode || 'Presencial';
-            service.serviceLocation = data.metadata?.location || '';
-            service.modalityBadge = service.serviceMode;
-          });
-        } catch (err) {
-          showToast(
-            `No fue posible cargar fotos y configuración local de servicios: ${
-              err instanceof Error ? err.message : 'error de almacenamiento'
-            }`,
-            'error'
-          );
-        }
         setServices(catalogServices);
         setSlots([]);
 
@@ -654,7 +614,7 @@ export function App() {
     await loadData(user!);
   };
 
-  const handleUpdateProfile = async (data: { nombre: string; correo: string; telefono: string }) => {
+  const handleUpdateProfile = async (data: PerfilPayload) => {
     const updated = await updateProfile(data);
     localStorage.setItem('agendapro_user', JSON.stringify(updated));
     setUser(updated);
@@ -695,119 +655,80 @@ export function App() {
     await loadData(user!);
   };
 
+  // Modalidad y ubicación viajan con el servicio; la foto se sube después (es más pesada).
   const handleAddService = async (data: ServicioFormData) => {
-    const created = await createService({
+    let created = await createService({
       nombre: data.title,
       descripcion: data.description,
       duracionMin: data.durationMinutes,
       precio: data.price,
+      modalidad: toApiModalidad(data.mode),
+      ubicacion: data.location,
     });
 
-    let imageUrl = '';
-    const storageErrors: string[] = [];
+    let photoError: string | null = null;
     if (data.imageDataUrl) {
       try {
-        await saveServiceImage(created.id, data.imageDataUrl);
-        imageUrl = data.imageDataUrl;
+        created = await guardarImagenServicio(created.id, data.imageDataUrl);
       } catch (err) {
-        storageErrors.push(err instanceof Error ? err.message : 'No fue posible guardar la foto.');
+        photoError = err instanceof Error ? err.message : 'No fue posible guardar la foto.';
       }
     }
-    try {
-      await saveServiceMetadata(created.id, { mode: data.mode, location: data.location });
-    } catch (err) {
-      storageErrors.push(err instanceof Error ? err.message : 'No fue posible guardar modalidad y ubicación.');
-    }
 
-    const mapped = {
-      ...mapProviderService(created),
-      imageUrl,
-      serviceMode: data.mode,
-      modalityBadge: data.mode,
-      serviceLocation: data.location,
-    };
-    setServices((prev) => [mapped, ...prev]);
+    setServices((prev) => [mapProviderService(created), ...prev]);
     showToast(
-      storageErrors.length
-        ? `Servicio publicado, pero hubo un problema guardando datos locales: ${storageErrors.join(' ')}`
+      photoError
+        ? `Servicio "${created.nombre}" publicado, pero la foto no se guardó: ${photoError}`
         : `Servicio "${created.nombre}" publicado en tu catálogo.`,
-      storageErrors.length ? 'error' : 'ok'
+      photoError ? 'error' : 'ok'
     );
   };
 
   const handleUpdateServiceDetails = async (id: string, data: ServicioFormData) => {
     const existing = services.find((s) => s.id === id);
 
-    const updated = await updateService(Number(id), {
+    let updated = await updateService(Number(id), {
       nombre: data.title,
       descripcion: data.description,
       duracionMin: data.durationMinutes,
       precio: data.price,
       estado: existing?.isActive === false ? 'INACTIVO' : 'ACTIVO',
+      modalidad: toApiModalidad(data.mode),
+      ubicacion: data.location,
     });
 
-    let imageUrl = existing?.imageUrl || '';
-    const storageErrors: string[] = [];
+    // imageDataUrl: undefined = sin cambios, null = quitar la foto, texto = foto nueva.
+    let photoError: string | null = null;
     try {
       if (data.imageDataUrl === null) {
-        await deleteServiceImage(id);
-        imageUrl = '';
+        updated = await quitarImagenServicio(Number(id));
       } else if (data.imageDataUrl) {
-        await saveServiceImage(id, data.imageDataUrl);
-        imageUrl = data.imageDataUrl;
+        updated = await guardarImagenServicio(Number(id), data.imageDataUrl);
       }
     } catch (err) {
-      storageErrors.push(err instanceof Error ? err.message : 'No fue posible actualizar la foto.');
-    }
-    try {
-      await saveServiceMetadata(id, { mode: data.mode, location: data.location });
-    } catch (err) {
-      storageErrors.push(err instanceof Error ? err.message : 'No fue posible actualizar modalidad y ubicación.');
+      photoError = err instanceof Error ? err.message : 'No fue posible actualizar la foto.';
     }
 
-    const mapped = {
-      ...mapProviderService(updated),
-      imageUrl,
-      serviceMode: data.mode,
-      modalityBadge: data.mode,
-      serviceLocation: data.location,
-    };
-    setServices((prev) => prev.map((s) => (s.id === id ? mapped : s)));
+    setServices((prev) => prev.map((s) => (s.id === id ? mapProviderService(updated) : s)));
     showToast(
-      storageErrors.length
-        ? `Servicio actualizado, pero hubo un problema guardando datos locales: ${storageErrors.join(' ')}`
+      photoError
+        ? `Servicio actualizado, pero la foto no se guardó: ${photoError}`
         : `Servicio "${updated.nombre}" actualizado.`,
-      storageErrors.length ? 'error' : 'ok'
+      photoError ? 'error' : 'ok'
     );
   };
 
   const handleDeleteService = async (id: string) => {
     try {
       await deleteService(Number(id));
-      let imageCleanupError: string | null = null;
-      try {
-        await deleteServiceImage(id);
-      } catch (err) {
-        imageCleanupError = err instanceof Error ? err.message : 'No fue posible quitar la foto guardada.';
-      }
-      try {
-        await deleteServiceMetadata(id);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'No fue posible quitar los datos guardados.';
-        imageCleanupError = imageCleanupError ? `${imageCleanupError} ${message}` : message;
-      }
       setServices((prev) => prev.filter((s) => s.id !== id));
       setSlots((prev) => prev.filter((s) => s.serviceId !== id));
-      showToast(
-        imageCleanupError
-          ? `Servicio eliminado, pero no se pudo limpiar su foto: ${imageCleanupError}`
-          : 'Servicio eliminado.',
-        imageCleanupError ? 'error' : 'ok'
-      );
+      showToast('Servicio eliminado.');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'No fue posible eliminar el servicio', 'error');
     }
   };
+
 
   const handleOpenCreateService = () => {
     setServiceToEdit(null);
@@ -990,7 +911,7 @@ export function App() {
                       setServices((prev) =>
                       prev.map((s) =>
                         s.id === id
-                          ? { ...mapProviderService(updated), imageUrl: s.imageUrl }
+                          ? mapProviderService(updated)
                           : s
                       )
                       );
@@ -1056,7 +977,14 @@ export function App() {
               )}
 
               {currentView === 'profile' && (
-                <ProfileScreen user={user} onSave={handleUpdateProfile} />
+                <ProfileScreen
+                  user={user}
+                  onSave={handleUpdateProfile}
+                  onChangePassword={async (datos) => {
+                    await cambiarContrasena(datos);
+                    showToast('Contraseña actualizada. Úsala la próxima vez que inicies sesión.');
+                  }}
+                />
               )}
             </main>
           </div>

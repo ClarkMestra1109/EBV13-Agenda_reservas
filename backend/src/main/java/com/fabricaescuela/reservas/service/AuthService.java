@@ -12,6 +12,8 @@ import com.fabricaescuela.reservas.repository.TokenRecuperacionRepository;
 import com.fabricaescuela.reservas.repository.UsuarioRepository;
 import com.fabricaescuela.reservas.security.JwtService;
 import com.fabricaescuela.reservas.security.LimitadorIntentos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private static final String CORREO_REGISTRADO = "El correo electrónico ya se encuentra registrado";
     private static final long EXPIRACION_RECUPERACION_MINUTOS = 30;
@@ -131,11 +135,20 @@ public class AuthService {
         // reescritura configuradas), así que el enlace apunta a la raíz con el token como
         // parámetro; App.tsx lo detecta al cargar y abre la pantalla de restablecer.
         String enlace = urlFrontend + "/?token=" + token.getToken();
-        emailService.enviarCorreo(
-                usuario.getCorreo(),
-                "Recupera el acceso a tu cuenta",
-                "Para restablecer tu contraseña, ingresa a este enlace (vence en "
-                        + EXPIRACION_RECUPERACION_MINUTOS + " minutos): " + enlace);
+        try {
+            emailService.enviarCorreo(
+                    usuario.getCorreo(),
+                    "Recupera el acceso a tu cuenta",
+                    "Hola " + usuario.getNombre() + ",\n\nRecibimos una solicitud para restablecer tu "
+                            + "contraseña. Ingresa a este enlace para crear una nueva (vence en "
+                            + EXPIRACION_RECUPERACION_MINUTOS + " minutos y solo sirve una vez):\n\n"
+                            + enlace + "\n\nSi no fuiste tú, ignora este mensaje: tu contraseña no cambiará.");
+        } catch (RuntimeException e) {
+            // Si el correo no sale, el enlace no se guarda (la transacción se revierte) y se avisa.
+            log.error("No se pudo enviar el correo de recuperación a {}: {}", usuario.getCorreo(), e.getMessage());
+            throw ApiException.servicioNoDisponible(
+                    "No fue posible enviar el correo de recuperación en este momento. Intente de nuevo en unos minutos");
+        }
     }
 
     /** HU04: valida el token (existe, no usado, no expirado) y actualiza la contraseña. */

@@ -48,6 +48,19 @@ public class Servicio {
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
+    /** Presencial o virtual. Nulo en servicios creados antes de este campo: se trata como presencial. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Modalidad modalidad;
+
+    /** Dirección donde se presta el servicio (solo presencial). */
+    @Column(length = 200)
+    private String ubicacion;
+
+    /** Momento de la última foto cargada (sirve como versión para el caché); nulo si no tiene. */
+    @Column(name = "imagen_actualizada")
+    private Instant imagenActualizada;
+
     @PrePersist
     void alCrear() {
         this.fechaCreacion = Instant.now();
@@ -67,4 +80,10 @@ public class Servicio {
     public EstadoServicio getEstado() { return estado; }
     public void setEstado(EstadoServicio estado) { this.estado = estado; }
     public Instant getFechaCreacion() { return fechaCreacion; }
+    public Modalidad getModalidad() { return modalidad == null ? Modalidad.PRESENCIAL : modalidad; }
+    public void setModalidad(Modalidad modalidad) { this.modalidad = modalidad; }
+    public String getUbicacion() { return ubicacion; }
+    public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+    public Instant getImagenActualizada() { return imagenActualizada; }
+    public void setImagenActualizada(Instant imagenActualizada) { this.imagenActualizada = imagenActualizada; }
 }
