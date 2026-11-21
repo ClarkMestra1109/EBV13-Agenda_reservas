@@ -305,6 +305,19 @@ export async function updateProfile(data: { nombre: string; correo: string; tele
   });
 }
 
+// ---------------------------------------------------------------- Servidor
+
+/**
+ * Hace una petición liviana para "despertar" el backend. En el plan gratuito de Render el
+ * servidor se apaga tras 15 minutos sin uso y tarda cerca de un minuto en arrancar; llamarlo
+ * al abrir la página adelanta ese arranque mientras el usuario escribe sus datos.
+ */
+export function despertarServidor(): void {
+  fetch(`${API_URL}/salud`).catch(() => {
+    // Si falla no pasa nada: la siguiente petición real mostrará el error correspondiente.
+  });
+}
+
 // ---------------------------------------------------------------- HU07-HU09 Recursos
 
 export type TipoRecurso = 'ESPACIO' | 'EQUIPO' | 'PERSONAL' | 'OTRO';

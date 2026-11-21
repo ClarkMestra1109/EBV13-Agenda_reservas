@@ -29,6 +29,7 @@ import {
   getCatalogServices,
   getMyServiceSlots,
   getMyServices,
+  despertarServidor,
   login,
   register,
   solicitarRecuperacion,
@@ -463,6 +464,11 @@ export function App() {
       setIsLoading(false);
     }
   };
+
+  // Despierta el servidor apenas se abre la página (ver despertarServidor).
+  useEffect(() => {
+    despertarServidor();
+  }, []);
 
   useEffect(() => {
     if (user && localStorage.getItem('agendapro_token')) {

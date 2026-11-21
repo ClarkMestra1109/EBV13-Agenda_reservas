@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { UserRole } from '../../types';
 import {
   Lock,
@@ -35,6 +35,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
+
+  // Si el servidor estaba inactivo tarda en responder: tras unos segundos se explica la espera.
+  useEffect(() => {
+    if (!isSubmitting) {
+      setIsSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setIsSlow(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [isSubmitting]);
   const [error, setError] = useState<string | null>(null);
 
   const handleSelectRole = (role: UserRole) => {
@@ -310,13 +321,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               >
                 <span>
                   {isSubmitting
-                    ? 'Procesando...'
+                    ? isSlow
+                      ? 'Conectando con el servidor...'
+                      : 'Procesando...'
                     : isRegistering
                     ? 'Crear cuenta'
                     : 'Iniciar sesión'}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+
+              {isSlow && (
+                <p role="status" className="text-[11px] text-slate-500 text-center leading-relaxed">
+                  El servidor se está activando después de un tiempo sin uso. Puede tardar hasta un
+                  minuto; no cierres la página.
+                </p>
+              )}
             </form>
           </div>
         </div>
