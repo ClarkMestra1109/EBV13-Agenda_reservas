@@ -127,4 +127,4 @@ El detalle de los endpoints está en [`backend/README.md`](backend/README.md).
 
 ## Equipo
 
-Fábrica Escuela — Caso 14. Backend, despliegue e integración: Clark Mestra. Frontend: Isa.
+Fábrica Escuela — Caso 14. EBV13
