@@ -12,6 +12,12 @@ agenda) y HU19 (recibir recordatorio). HU03 y HU04 son las HU de seguridad del i
 sprint: HU03 protege el propio perfil (solo se edita el del usuario autenticado) y HU04 cubre el
 restablecimiento seguro de contraseña con un token de un solo uso y expiración.
 
+**Sprint 3:** HU07 (registrar recurso), HU08 (asociar recurso), HU09 (definir capacidad), HU20
+(contar reservas), HU21 (medir ocupación), HU22 (filtrar reportes) y HU23 (exportar reporte, el
+archivo CSV se genera en el frontend con los datos de `/api/informes`). Además: correo real con
+Brevo, perfil comercial, cambio de contraseña, foto/modalidad/ubicación de los servicios y las
+validaciones y reglas de negocio pedidas en la retroalimentación del Sprint 2.
+
 ## Ejecutar en local
 
 Requisitos: JDK 17+, Maven 3.9+ y un PostgreSQL con una base de datos vacía llamada `reservas`.
@@ -41,11 +47,17 @@ Pruebas (usan H2 en memoria, no necesitan PostgreSQL): `mvn test`
 
 ### Envío de correos (HU04 y HU19)
 
-Este sprint no tiene un proveedor SMTP configurado. El envío de correos está detrás de la interfaz
-`EmailService`; la implementación actual (`LogEmailService`) solo registra el correo en el log del
-servidor en vez de enviarlo de verdad. Para producción basta con escribir otra implementación (por
-ejemplo con `JavaMailSender` y credenciales SMTP en variables de entorno) y que Spring la use en vez
-de la actual — el resto del código (`AuthService`, `RecordatorioService`) no cambia.
+El envío está detrás de la interfaz `EmailService` y se elige con `EMAIL_PROVEEDOR`:
+
+| Valor | Implementación | Qué hace |
+| --- | --- | --- |
+| `log` (por defecto) | `LogEmailService` | Escribe el correo en el log del servidor (`[EMAIL SIMULADO]`) |
+| `brevo` | `BrevoEmailService` | Lo envía de verdad con la API HTTP de Brevo |
+
+Con `brevo` hacen falta `BREVO_API_KEY` y `EMAIL_REMITENTE` (un remitente verificado en Brevo).
+Se usa la API HTTPS y no SMTP porque el plan gratuito de Render bloquea los puertos SMTP. Si el
+envío de recuperación falla, el usuario recibe un 503 y el enlace no se guarda. Si falla un
+recordatorio, la reserva sigue válida y el error queda registrado.
 
 Despliegue: el `Dockerfile` construye el JAR con Maven y lo ejecuta con JRE 17.
 
@@ -74,6 +86,20 @@ Despliegue: el `Dockerfile` construye el JAR con Maven y lo ejecuta con JRE 17.
 | POST | `/api/auth/restablecer` | público | HU04 |
 | DELETE | `/api/servicios/{id}` | PROVEEDOR dueño | HU06 |
 | POST | `/api/servicios/{id}/franjas/recurrentes` | PROVEEDOR dueño | HU12 |
+| POST | `/api/usuarios/me/contrasena` | cualquier usuario autenticado | Cambio de contraseña |
+| PUT | `/api/servicios/{id}/imagen` | PROVEEDOR dueño | Foto del servicio (data URL JPG, PNG o WebP, máx. 2,5 MB) |
+| DELETE | `/api/servicios/{id}/imagen` | PROVEEDOR dueño | Quitar la foto |
+| GET | `/api/imagenes/servicios/{id}` | público | Ver la foto (la usa el catálogo) |
+| POST | `/api/recursos` | PROVEEDOR | HU07 |
+| GET | `/api/recursos` | PROVEEDOR | HU07 |
+| PUT | `/api/recursos/{id}` | PROVEEDOR dueño | HU09 (capacidad) |
+| DELETE | `/api/recursos/{id}` | PROVEEDOR dueño | HU07 (solo si no está asociado) |
+| GET | `/api/recursos/{id}/disponibilidad?fecha=YYYY-MM-DD` | PROVEEDOR dueño | HU09 |
+| GET | `/api/servicios/{id}/recursos` | PROVEEDOR dueño | HU08 |
+| POST | `/api/servicios/{id}/recursos/{recursoId}` | PROVEEDOR dueño de ambos | HU08 |
+| DELETE | `/api/servicios/{id}/recursos/{recursoId}` | PROVEEDOR dueño de ambos | HU08 |
+| GET | `/api/informes?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&servicioId=` | PROVEEDOR | HU20–HU23 |
+| GET | `/api/salud` | público | Estado del servidor (monitor) |
 
 Las fechas de las franjas van en ISO-8601 con zona, por ejemplo `2026-10-05T09:00:00-05:00`.
 `fecha` en el filtro de agenda (HU18) y `repetirHasta` en los horarios recurrentes (HU12) van en
